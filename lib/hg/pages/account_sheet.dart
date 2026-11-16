@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../auth/app_controllers.dart';
 import '../theme/hg_theme.dart';
+import '../utils/hg_format.dart';
 import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
 import 'edit_profile_sheet.dart';
