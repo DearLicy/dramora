@@ -65,6 +65,7 @@ jobs:
 
   deploy-pages:
     needs: build-web
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -125,7 +126,7 @@ jobs:
     needs:
       - build-android
       - build-ios
-    if: ${{ always() && needs.build-android.result == 'success' }}
+    if: ${{ github.ref == 'refs/heads/main' && always() && needs.build-android.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
