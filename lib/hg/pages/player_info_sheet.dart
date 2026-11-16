@@ -57,20 +57,11 @@ class _PlayerInfoSheetState extends State<_PlayerInfoSheet> {
       clipBehavior: Clip.antiAlias,
       child: ListView(
         shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
+        physics: const ClampingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
         padding: EdgeInsets.zero,
         children: [
-          const SizedBox(height: 8),
-          Center(
-            child: Container(
-              width: 34,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.hgLine,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 18),

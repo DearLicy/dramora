@@ -517,7 +517,10 @@ class _HeaderIcon extends StatelessWidget {
               height: 17,
               padding: const EdgeInsets.symmetric(horizontal: 4),
               alignment: Alignment.center,
-              decoration: const BoxDecoration(shape: BoxShape.circle),
+              decoration: const BoxDecoration(
+                color: HgColors.orange,
+                shape: BoxShape.circle,
+              ),
               child: Text(
                 badge > 99 ? '99+' : '$badge',
                 style: const TextStyle(
@@ -686,6 +689,7 @@ class _QuickActions extends StatelessWidget {
                                 ),
                                 alignment: Alignment.center,
                                 decoration: const BoxDecoration(
+                                  color: HgColors.orange,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(

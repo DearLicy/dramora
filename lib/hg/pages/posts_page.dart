@@ -1425,13 +1425,11 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final enabled = context.watch<AuthController>().isLoggedIn;
-    final size = MediaQuery.sizeOf(context);
     final inset = MediaQuery.viewInsetsOf(context).bottom;
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       padding: EdgeInsets.only(bottom: inset),
       child: Container(
-        height: size.height * 0.72,
         decoration: BoxDecoration(
           color: context.hgSurface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1439,15 +1437,6 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
-            const SizedBox(height: 9),
-            Container(
-              width: 38,
-              height: 4,
-              decoration: BoxDecoration(
-                color: context.hgLine,
-                borderRadius: BorderRadius.circular(99),
-              ),
-            ),
             SizedBox(
               height: 54,
               child: Stack(

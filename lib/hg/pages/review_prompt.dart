@@ -32,16 +32,6 @@ Future<void> maybeShowHgReviewPrompt(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Center(
-                child: Container(
-                  width: 38,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: context.hgLine,
-                    borderRadius: BorderRadius.circular(99),
-                  ),
-                ),
-              ),
               const SizedBox(height: 22),
               Container(
                 width: 48,

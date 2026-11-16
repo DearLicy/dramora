@@ -207,6 +207,8 @@ ThemeData buildHgTheme(Brightness brightness) {
       backgroundColor: dark ? const Color(0xFF181818) : Colors.white,
       modalBackgroundColor: dark ? const Color(0xFF181818) : Colors.white,
       surfaceTintColor: Colors.transparent,
+      dragHandleColor: dark ? const Color(0xFF5A5A5E) : const Color(0xFFD2D2D7),
+      dragHandleSize: const Size(38, 4),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

@@ -1,17 +1,37 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.3';
-  static const String buildNumber = '8';
-  static const String versionLabel = 'v1.4.3 (8)';
-  static const String releaseTitle = '启动稳定性修复版';
+  static const String version = '1.4.4';
+  static const String buildNumber = '9';
+  static const String versionLabel = 'v1.4.4 (9)';
+  static const String releaseTitle = '原生面板与全局打磨版';
   static const List<String> releaseNotes = [
-    '修复 iOS 灵动岛 Widget 因 CFBundleName 为空而无法安装的问题。',
-    'Android 改为首帧优先启动，通知和后台任务在界面显示后异步初始化。',
-    'Android 启动页改为品牌化深色启动画面，不再出现空白黑屏。',
-    '通知图标加入资源保留规则，避免 Release 压缩后初始化失败。',
-    'IPA 构建新增主 App 与 Widget 的 CFBundleName 强校验。',
+    '半屏组件统一改用 Flutter 原生拖动条与吸附手势，支持半屏、接近全屏和下拉关闭。',
+    '移除各面板内部写死的固定高度，修复内外层滚动与拖拽互相冲突。',
+    '登录、编辑资料、评论、选集、分享和更新说明等面板适配键盘与深色模式。',
+    '清空缓存、退出登录等确认操作全部统一为半屏确认组件。',
+    '修复我的页面消息角标和快捷入口角标缺少背景色的问题。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.4',
+      buildNumber: '9',
+      date: '2026-11-16',
+      title: '原生面板与全局打磨版',
+      features: [
+        '半屏面板统一复用 Flutter 原生模态底部面板、系统拖动条和中大档吸附。',
+        '新增统一确认面板，清空缓存、退出登录等操作不再使用居中系统弹窗。',
+        '数据源、更新说明、消息详情和设置选择等长内容统一使用面板滚动控制器。',
+      ],
+      improvements: [
+        '登录、编辑资料、评论、选集、分享和更新说明的面板高度改由容器统一控制。',
+        '面板内文字、按钮和错误提示改为跟随浅色与深色主题。',
+        '评论输入、数据源地址输入和帖子评论适配键盘与底部安全区。',
+      ],
+      fixes: [
+        '修复半屏顶部横条无法可靠拖动、内外层滚动冲突和高度跳动的问题。',
+        '修复我的页面消息角标和快捷入口角标背景透明、部分环境不可见的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.3',
       buildNumber: '8',

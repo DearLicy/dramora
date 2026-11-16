@@ -110,15 +110,6 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 9),
-              Container(
-                width: 38,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE5E5E7),
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 18, 20, 10),
                 child: Row(
@@ -140,8 +131,8 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                           const SizedBox(height: 4),
                           Text(
                             episodeLabel,
-                            style: const TextStyle(
-                              color: Color(0xFF929297),
+                            style: TextStyle(
+                              color: sheetContext.hgMuted,
                               fontSize: 11,
                             ),
                           ),
@@ -198,7 +189,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                 _DetailAction(
                   icon: Icons.history_toggle_off_rounded,
                   title: '清除本剧观看记录',
-                  color: const Color(0xFFC64F45),
+                  color: Theme.of(sheetContext).colorScheme.error,
                   onTap: () async {
                     Navigator.pop(sheetContext);
                     await HgLocalHistory.remove(widget.videoId);

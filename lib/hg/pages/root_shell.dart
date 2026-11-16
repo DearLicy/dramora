@@ -131,7 +131,9 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
     if (!mounted) return;
     await showHgAdaptiveSheetBuilder<void>(
       context,
+      childScrollable: true,
       barrierColor: Colors.black.withValues(alpha: 0.4),
+      initialSize: 0.62,
       builder: (_) => const HgReleaseNotesSheet(),
     );
     await prefs.setString(_releaseSeenKey, HgAppMetadata.versionLabel);
@@ -201,7 +203,12 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
         if (!mounted) return;
         showHgAdaptiveSheetBuilder<void>(
           context,
+          isDismissible: false,
+          enableDrag: false,
+          childScrollable: true,
           barrierColor: Colors.black.withValues(alpha: 0.42),
+          initialSize: 0.68,
+          maxSize: 0.94,
           builder: (_) => const HgSourceEditorSheet(recovery: true),
         );
       });
