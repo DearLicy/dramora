@@ -6,7 +6,7 @@ typedef HgNowPlayingSeekHandler = Future<void> Function(double seconds);
 /// iOS 锁屏/通知中心的系统“正在播放”信息。
 abstract final class HgNowPlayingService {
   static const _channel = MethodChannel('com.guomu.huangguo/nowplaying');
-  static final Map<String, String> _empty = const {};
+  static const Map<String, String> _empty = {};
   static bool _handlerInstalled = false;
   static Future<void> Function()? _onPlay;
   static Future<void> Function()? _onPause;
