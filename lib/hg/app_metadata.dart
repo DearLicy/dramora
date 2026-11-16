@@ -1,17 +1,40 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.4';
-  static const String buildNumber = '9';
-  static const String versionLabel = 'v1.4.4 (9)';
-  static const String releaseTitle = '原生面板与全局打磨版';
+  static const String version = '1.4.5';
+  static const String buildNumber = '10';
+  static const String versionLabel = 'v1.4.5 (10)';
+  static const String releaseTitle = '播放器与 iOS 后台能力版';
   static const List<String> releaseNotes = [
-    '半屏组件统一改用 Flutter 原生拖动条与吸附手势，支持半屏、接近全屏和下拉关闭。',
-    '移除各面板内部写死的固定高度，修复内外层滚动与拖拽互相冲突。',
-    '登录、编辑资料、评论、选集、分享和更新说明等面板适配键盘与深色模式。',
-    '清空缓存、退出登录等确认操作全部统一为半屏确认组件。',
-    '修复我的页面消息角标和快捷入口角标缺少背景色的问题。',
+    '视频进度条改用原生 Slider，扩大触控区域并优化拖动、点击与松手响应。',
+    '横屏视频在竖屏下使用纯黑背景，不再显示封面兜底，全屏入口移动到更容易触达的位置。',
+    'iOS 补齐实时活动、后台音频、后台刷新、锁屏媒体信息和 iPhone 横屏能力。',
+    'iOS 启动时自动申请通知权限，离开播放页后同步关闭系统播放状态。',
+    '移除评论区与半屏拖动条重合的下箭头。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.5',
+      buildNumber: '10',
+      date: '2026-11-16',
+      title: '播放器与 iOS 后台能力版',
+      features: [
+        'iOS 灵动岛与锁屏实时活动补齐主 App 能力声明，并在播放开始时立即创建。',
+        'iOS 接入系统 Now Playing 锁屏媒体信息和播放控制。',
+        '启动时自动请求通知权限，后台音频与后台 App 刷新能力同步启用。',
+        'iPhone 播放器支持左右横屏，退出播放器后自动恢复竖屏。',
+      ],
+      improvements: [
+        '视频进度条改用 Flutter 原生 Slider，触控区域扩大并支持连续跟手拖动。',
+        '进度条整体上移并放到选集栏上方，避免贴近系统手势区导致难以滑动。',
+        '横屏视频竖屏显示时使用纯黑背景，不再以封面图填充画面。',
+        '全屏观看按钮移动到画面上方，并扩大按钮点击区域。',
+      ],
+      fixes: [
+        '修复评论区下箭头与半屏拖动条重合的问题。',
+        '修复松手后等待视频 seek 完成才更新界面造成的卡顿感。',
+        '修复 Live Activity 封面过大可能导致活动创建失败的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.4',
       buildNumber: '9',

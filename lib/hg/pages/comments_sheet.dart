@@ -225,29 +225,15 @@ class _CommentsSheetState extends State<CommentsSheet> {
           children: [
             SizedBox(
               height: 54,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    '${_total > 0 ? formatCount(_total) : ''}条评论',
-                    style: TextStyle(
-                      color: context.hgOnSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+              child: Center(
+                child: Text(
+                  '${_total > 0 ? formatCount(_total) : ''}条评论',
+                  style: TextStyle(
+                    color: context.hgOnSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
-                  Positioned(
-                    left: 10,
-                    child: IconButton(
-                      onPressed: () => Navigator.maybePop(context),
-                      icon: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        color: context.hgOnSurface,
-                        size: 29,
-                      ),
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
             Expanded(child: _buildBody(auth)),

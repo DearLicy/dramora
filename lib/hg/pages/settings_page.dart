@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -295,6 +296,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   value: _notificationsEnabled,
                   onChanged: _setNotifications,
                 ),
+              ),
+              const _SettingsDivider(),
+              _SettingsRow(
+                leading: const _RowIcon(Icons.admin_panel_settings_outlined),
+                title: '系统权限',
+                subtitle: '通知、实时活动、后台 App 刷新和本地网络',
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: openAppSettings,
               ),
               const _SettingsDivider(),
               _SettingsRow(
