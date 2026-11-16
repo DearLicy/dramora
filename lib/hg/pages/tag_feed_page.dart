@@ -6,6 +6,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import 'detail_page.dart';
 
 class TagFeedPage extends StatefulWidget {
@@ -114,9 +115,8 @@ class _TagFeedPageState extends State<TagFeedPage> {
     final theme = Theme.of(context);
     final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: CustomScrollView(
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(
@@ -170,11 +170,7 @@ class _TagFeedPageState extends State<TagFeedPage> {
                   children: [
                     Row(
                       children: [
-                        const Icon(
-                          Icons.sell_rounded,
-                          color: HgColors.orange,
-                          size: 17,
-                        ),
+                        const Icon(Icons.sell_rounded, size: 17),
                         const SizedBox(width: 6),
                         Text(
                           widget.tag.categoryName,

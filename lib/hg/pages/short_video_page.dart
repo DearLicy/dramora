@@ -3,13 +3,18 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:provider/provider.dart';
 
 import '../api/hg_api.dart';
 import '../auth/app_controllers.dart';
+import '../app_flags.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../services/hg_live_activity_service.dart';
+import '../models/hg_download_models.dart';
+import '../utils/hg_download_manager.dart';
 import '../utils/hg_local_history.dart';
 import '../widgets/hg_components.dart';
 import '../utils/hg_player_display.dart';
@@ -57,6 +62,7 @@ class _ShortVideoPageState extends State<ShortVideoPage>
   final ValueNotifier<bool> _pageScrolling = ValueNotifier(false);
   bool _speedLocked = false;
   double _playbackSpeed = 1;
+  bool get _previewOnly => kIsWeb && kHgWebPreviewOnly;
   String? _error;
 
   String _speedLabel(double speed) {
@@ -85,6 +91,7 @@ class _ShortVideoPageState extends State<ShortVideoPage>
     unawaited(_saveCurrentProgress());
     _pageController.dispose();
     _pageScrolling.dispose();
+    unawaited(HgLiveActivityService.end());
     unawaited(HgPlayerDisplay.reset());
     super.dispose();
   }
@@ -99,14 +106,27 @@ class _ShortVideoPageState extends State<ShortVideoPage>
   }
 
   Future<void> _initialize() async {
+    if (_previewOnly) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
     if (widget.videoIds.isEmpty) {
       setState(() => _loading = false);
       return;
     }
     try {
-      final detail = await context.read<HgApi>().video(
-        widget.videoIds[_startDramaIndex],
-      );
+      final videoId = widget.videoIds[_startDramaIndex];
+      final api = context.read<HgApi>();
+      final downloads = context.read<HgDownloadManager>();
+      HgVideoDetail detail;
+      try {
+        detail = await api.video(videoId);
+      } catch (error) {
+        await downloads.restore();
+        final cached = downloads.taskFor(videoId);
+        if (cached == null || cached.episodes.isEmpty) rethrow;
+        detail = _offlineDetail(cached);
+      }
       final episodes = _episodesOf(detail);
       final history = await HgLocalHistory.find(detail.id);
       final wanted =
@@ -166,6 +186,28 @@ class _ShortVideoPageState extends State<ShortVideoPage>
     }
   }
 
+  HgVideoDetail _offlineDetail(HgDownloadTask task) {
+    final numbers = task.episodes.keys.toList()..sort();
+    return HgVideoDetail(
+      id: task.videoId,
+      title: task.title,
+      cover: task.cover,
+      description: '已缓存到本机，可离线观看。',
+      tags: task.tags,
+      score: 0,
+      episodeCount: numbers.length,
+      totalEpisodes: task.totalEpisodes > 0
+          ? task.totalEpisodes
+          : numbers.length,
+      episodes: numbers
+          .map((number) => HgEpisode(number: number, title: '第 $number 集'))
+          .toList(growable: false),
+      author: null,
+      isFinished: false,
+      isOriginal: false,
+    );
+  }
+
   List<HgEpisode> _episodesOf(HgVideoDetail detail) {
     if (detail.episodes.isNotEmpty) return detail.episodes;
     final count = detail.totalEpisodes > 0
@@ -184,7 +226,7 @@ class _ShortVideoPageState extends State<ShortVideoPage>
   Future<void> _ensureNextDrama() async {
     if (_loadingNextDrama ||
         _lastLoadedDramaIndex >= widget.videoIds.length - 1 ||
-        _entries.length - _currentPage > 4) {
+        _entries.length - _currentPage > 8) {
       return;
     }
     _loadingNextDrama = true;
@@ -361,7 +403,19 @@ class _ShortVideoPageState extends State<ShortVideoPage>
             final stage = Stack(
               fit: StackFit.expand,
               children: [
-                if (_loading)
+                if (_previewOnly)
+                  _WebPreviewBlocked(
+                    onOpenRelease: () async {
+                      final uri = Uri.tryParse(kHgLatestReleaseUrl);
+                      if (uri != null) {
+                        await launchUrl(
+                          uri,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      }
+                    },
+                  )
+                else if (_loading)
                   const Center(
                     child: CircularProgressIndicator(
                       color: Colors.white,
@@ -416,7 +470,7 @@ class _ShortVideoPageState extends State<ShortVideoPage>
                           resumePositionMs: entry.resumePositionMs,
                           active: index == _currentPage,
                           scrolling: _pageScrolling,
-                          prepare: (index - _currentPage).abs() <= 2,
+                          prepare: (index - _currentPage).abs() <= 4,
                           chromeVisible: _chromeVisible,
                           speedLocked: _speedLocked,
                           playbackSpeed: _playbackSpeed,
@@ -612,6 +666,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
   bool _speedUnlockedInGesture = false;
   String? _error;
   DateTime? _lastProgressAt;
+  DateTime? _lastLiveActivityAt;
   bool _scrubbing = false;
   bool _resumeAfterScrub = false;
   Duration _scrubPosition = Duration.zero;
@@ -655,13 +710,44 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
   void _syncPlaybackState() {
     if (!_showVideo) _emitProgress(force: true);
     if (_showVideo) {
-      unawaited(_controller?.play());
+      final controller = _controller;
+      if (controller == null) {
+        unawaited(_initializeWhenReady());
+      } else {
+        unawaited(controller.play());
+      }
     } else {
       unawaited(_controller?.pause());
     }
   }
 
-  void _handleControllerChanged() => _emitProgress();
+  Future<void> _handleControllerChanged() async {
+    final controller = _controller;
+    if (controller != null && controller.hasError) {
+      final message = _friendlyPlaybackError(
+        controller.errorDescription ?? '视频源加载失败',
+      );
+      _controller = null;
+      controller.removeListener(_handleControllerChanged);
+      controller.dispose();
+      if (!widget.active) return;
+      if (mounted) {
+        setState(() {
+          _loading = true;
+          _error = null;
+        });
+      }
+      await _initializePlayback();
+      if (mounted && _controller == null && _error == null) {
+        setState(() {
+          _loading = false;
+          _error = message;
+        });
+      }
+      return;
+    }
+    _emitProgress();
+  }
 
   void _emitProgress({bool force = false}) {
     if (!widget.active || _scrubbing) return;
@@ -678,6 +764,28 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     }
     _lastProgressAt = now;
     widget.onProgress(controller.position, duration);
+    final liveNow = DateTime.now();
+    if (_lastLiveActivityAt == null ||
+        liveNow.difference(_lastLiveActivityAt!) >
+            const Duration(seconds: 20)) {
+      _lastLiveActivityAt = liveNow;
+      unawaited(
+        HgLiveActivityService.showOrUpdate(
+          videoId: widget.detail.id,
+          title: widget.detail.title,
+          cover: widget.detail.cover,
+          tags: widget.detail.tags,
+          episode: widget.episode.number,
+          totalEpisodes: widget.detail.totalEpisodes > 0
+              ? widget.detail.totalEpisodes
+              : widget.detail.episodeCount,
+          progress: duration.inMilliseconds <= 0
+              ? 0
+              : controller.position.inMilliseconds / duration.inMilliseconds,
+          deepLink: 'guomu://video/${widget.detail.id}',
+        ),
+      );
+    }
   }
 
   Future<void> _initializeWhenReady() async {
@@ -695,51 +803,96 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     if (_initializing || _controller != null) return;
     _initializing = true;
     try {
-      final info = await context.read<HgApi>().playback(
-        widget.detail.id,
-        widget.episode.number,
-      );
-      final controller = HgVideoController(
-        url: info.videoUrl,
-        headers: hgMediaHeaders(),
-        onEnded: () {
-          if (widget.active) {
-            _emitProgress(force: true);
-            unawaited(widget.onEnded());
+      final downloads = context.read<HgDownloadManager>();
+      final api = context.read<HgApi>();
+      Object? lastError;
+      var allowNetworkRetry = true;
+      for (var attempt = 0; attempt < 2; attempt++) {
+        if (!mounted) return;
+        final localPath = await downloads.localPlaylist(
+          widget.detail.id,
+          widget.episode.number,
+        );
+        if (!mounted) return;
+        HgVideoController? controller;
+        try {
+          final info = localPath == null
+              ? await api.playback(widget.detail.id, widget.episode.number)
+              : null;
+          if (!mounted) return;
+          final mediaHeaders = <String, String>{
+            ...hgMediaHeaders(),
+            if (info != null && info.cdnAuthKey.isNotEmpty)
+              info.cdnAuthKey: info.cdnAuthValue,
+            if (info != null && info.cdnApp.isNotEmpty)
+              'x-cdn-app': info.cdnApp,
+          };
+          controller = HgVideoController(
+            url: info?.videoUrl ?? 'file://${localPath ?? ''}',
+            localPath: localPath,
+            headers: mediaHeaders,
+            onEnded: () {
+              if (widget.active) {
+                _emitProgress(force: true);
+                unawaited(widget.onEnded());
+              }
+            },
+          );
+          await controller.initialize();
+          if (!mounted) {
+            controller.dispose();
+            return;
           }
-        },
-      );
-      await controller.initialize();
-      if (!mounted) {
-        controller.dispose();
-        return;
+          _controller = controller;
+          controller.addListener(_handleControllerChanged);
+          final resume = Duration(milliseconds: widget.resumePositionMs);
+          if (resume > const Duration(seconds: 1) &&
+              controller.duration >
+                  resume + const Duration(milliseconds: 800)) {
+            await controller.seekTo(resume);
+          }
+          await controller.setPlaybackSpeed(
+            widget.speedLocked ? 2 : widget.playbackSpeed,
+          );
+          if (_showVideo) {
+            await controller.play();
+          } else {
+            await controller.pause();
+          }
+          setState(() => _loading = false);
+          return;
+        } catch (error) {
+          controller?.dispose();
+          lastError = error;
+          final isNetworkSource = localPath == null;
+          if (attempt == 0 && allowNetworkRetry && isNetworkSource) {
+            allowNetworkRetry = false;
+            await Future<void>.delayed(const Duration(milliseconds: 420));
+            continue;
+          }
+          break;
+        }
       }
-      _controller = controller;
-      controller.addListener(_handleControllerChanged);
-      final resume = Duration(milliseconds: widget.resumePositionMs);
-      if (resume > const Duration(seconds: 1) &&
-          controller.duration > resume + const Duration(milliseconds: 800)) {
-        await controller.seekTo(resume);
-      }
-      await controller.setPlaybackSpeed(
-        widget.speedLocked ? 2 : widget.playbackSpeed,
-      );
-      if (_showVideo) {
-        await controller.play();
-      } else {
-        await controller.pause();
-      }
-      setState(() => _loading = false);
-    } catch (error) {
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = cleanError(error);
+          _error = _friendlyPlaybackError(lastError ?? '视频加载失败');
         });
       }
     } finally {
       _initializing = false;
     }
+  }
+
+  String _friendlyPlaybackError(Object error) {
+    final text = cleanError(error).toLowerCase();
+    if (text.contains('source error') ||
+        text.contains('videoerror') ||
+        text.contains('platformexception') ||
+        text.contains('http')) {
+      return '视频源加载失败，请检查网络后重试';
+    }
+    return cleanError(error);
   }
 
   @override
@@ -1787,6 +1940,62 @@ class _RailAction extends StatelessWidget {
   }
 }
 
+class _WebPreviewBlocked extends StatelessWidget {
+  const _WebPreviewBlocked({required this.onOpenRelease});
+
+  final VoidCallback onOpenRelease;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 34),
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.76),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.open_in_new_rounded,
+              color: Colors.white70,
+              size: 30,
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              '网页预览不提供播放',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '请前往 GitHub Releases 下载最新安装包。网页预览不会加载视频，也不会发起播放请求。',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                height: 1.55,
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: onOpenRelease,
+              child: const Text('前往 Releases'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _InlinePlaybackError extends StatelessWidget {
   const _InlinePlaybackError({required this.error, required this.onRetry});
 
@@ -1808,17 +2017,27 @@ class _InlinePlaybackError extends StatelessWidget {
         children: [
           const Icon(Icons.cloud_off_rounded, color: Colors.white70, size: 28),
           const SizedBox(height: 9),
+          const Text(
+            '播放暂时中断',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 5),
           Text(
             error,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
           const SizedBox(height: 12),
-          OutlinedButton(
+          FilledButton(
             onPressed: onRetry,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.white,
-              side: const BorderSide(color: Colors.white30),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              minimumSize: const Size(112, 38),
             ),
             child: const Text('重新加载'),
           ),

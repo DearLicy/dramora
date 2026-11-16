@@ -53,3 +53,20 @@ void showHgSnack(BuildContext context, String message) {
     ..hideCurrentSnackBar()
     ..showSnackBar(SnackBar(content: Text(message)));
 }
+
+String formatBytes(int bytes) {
+  if (bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return '${value.toStringAsFixed(unit == 0 ? 0 : 1)} ${units[unit]}';
+}
+
+String formatSpeed(int bytesPerSecond) {
+  if (bytesPerSecond <= 0) return '等待网络';
+  return '${formatBytes(bytesPerSecond)}/s';
+}

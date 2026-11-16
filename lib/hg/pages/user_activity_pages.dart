@@ -6,7 +6,9 @@ import '../api/hg_api.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'creator_page.dart';
 
@@ -65,11 +67,10 @@ class _MyFollowsPageState extends State<MyFollowsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
+      backgroundColor: context.hgSurfaceLow,
       appBar: _ActivityAppBar(title: '我的关注'),
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: _loading
             ? const HgLoading()
             : _error != null
@@ -91,7 +92,7 @@ class _MyFollowsPageState extends State<MyFollowsPage> {
                   final author = _items[index];
                   final updating = _updating.contains(author.id);
                   return Material(
-                    color: Colors.white,
+                    color: context.hgSurface,
                     borderRadius: BorderRadius.circular(13),
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
@@ -118,8 +119,8 @@ class _MyFollowsPageState extends State<MyFollowsPage> {
                                     author.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFF262629),
+                                    style: TextStyle(
+                                      color: context.hgOnSurface,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -127,8 +128,8 @@ class _MyFollowsPageState extends State<MyFollowsPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${formatCount(author.followers)} 粉丝',
-                                    style: const TextStyle(
-                                      color: Color(0xFF929297),
+                                    style: TextStyle(
+                                      color: context.hgMuted,
                                       fontSize: 11,
                                     ),
                                   ),
@@ -255,18 +256,15 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
   Future<void> _openMessage(HgUserMessage message) async {
     await _markRead(message);
     if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await showHgAdaptiveSheetBuilder<void>(
+      context,
       builder: (context) => Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.72,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: context.hgSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -328,7 +326,7 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
+      backgroundColor: context.hgSurfaceLow,
       appBar: _ActivityAppBar(
         title: '系统消息',
         action: _unread > 0
@@ -338,9 +336,8 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
               )
             : null,
       ),
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: _loading
             ? const HgLoading()
             : _error != null
@@ -360,7 +357,7 @@ class _MyMessagesPageState extends State<MyMessagesPage> {
                 itemBuilder: (context, index) {
                   final message = _items[index];
                   return Material(
-                    color: Colors.white,
+                    color: context.hgSurface,
                     borderRadius: BorderRadius.circular(13),
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
@@ -466,7 +463,7 @@ class _ActivityAppBar extends StatelessWidget implements PreferredSizeWidget {
   @override
   Widget build(BuildContext context) {
     return AppBar(
-      backgroundColor: const Color(0xFFF7F7F8),
+      backgroundColor: context.hgSurfaceLow,
       surfaceTintColor: Colors.transparent,
       leading: IconButton(
         onPressed: () => Navigator.maybePop(context),
@@ -553,11 +550,10 @@ class _MyFollowersPageState extends State<MyFollowersPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
+      backgroundColor: context.hgSurfaceLow,
       appBar: _ActivityAppBar(title: '我的粉丝'),
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: _loading
             ? const HgLoading()
             : _error != null
@@ -579,7 +575,7 @@ class _MyFollowersPageState extends State<MyFollowersPage> {
                   final author = _items[index];
                   final updating = _updating.contains(author.id);
                   return Material(
-                    color: Colors.white,
+                    color: context.hgSurface,
                     borderRadius: BorderRadius.circular(13),
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
@@ -606,8 +602,8 @@ class _MyFollowersPageState extends State<MyFollowersPage> {
                                     author.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      color: Color(0xFF262629),
+                                    style: TextStyle(
+                                      color: context.hgOnSurface,
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
                                     ),
@@ -615,8 +611,8 @@ class _MyFollowersPageState extends State<MyFollowersPage> {
                                   const SizedBox(height: 4),
                                   Text(
                                     '${formatCount(author.followers)} 粉丝',
-                                    style: const TextStyle(
-                                      color: Color(0xFF929297),
+                                    style: TextStyle(
+                                      color: context.hgMuted,
                                       fontSize: 11,
                                     ),
                                   ),

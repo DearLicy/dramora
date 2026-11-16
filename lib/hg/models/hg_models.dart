@@ -700,6 +700,9 @@ class HgPlayInfo {
     this.duration = 0,
     this.title = '',
     this.hevcUrl = '',
+    this.cdnAuthKey = '',
+    this.cdnAuthValue = '',
+    this.cdnApp = '',
   });
 
   final int videoId;
@@ -708,6 +711,9 @@ class HgPlayInfo {
   final int duration;
   final String title;
   final String hevcUrl;
+  final String cdnAuthKey;
+  final String cdnAuthValue;
+  final String cdnApp;
 
   factory HgPlayInfo.fromJson(
     Map<String, dynamic> json, {
@@ -715,13 +721,19 @@ class HgPlayInfo {
     required int episode,
   }) {
     final streams = asMap(json['streams']);
+    final cdn = asMap(json['cdn']);
     return HgPlayInfo(
       videoId: asInt(json['id'], fallback: videoId),
       episode: asInt(json['ep_num'] ?? json['ep'], fallback: episode),
-      videoUrl: asText(streams['main'] ?? json['video_url']),
+      videoUrl: asText(
+        streams['main'] ?? streams['preview'] ?? json['video_url'],
+      ),
       duration: asInt(json['duration']),
       title: asText(json['title']),
       hevcUrl: asText(streams['hevc'] ?? json['video_url_hevc']),
+      cdnAuthKey: asText(cdn['authKey'] ?? cdn['auth_key']),
+      cdnAuthValue: asText(cdn['authValue'] ?? cdn['auth_value']),
+      cdnApp: asText(cdn['app']),
     );
   }
 }

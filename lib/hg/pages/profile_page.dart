@@ -8,6 +8,7 @@ import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../utils/hg_local_history.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'account_sheet.dart';
 import 'login_sheet.dart';
@@ -221,12 +222,11 @@ class _ProfilePageState extends State<ProfilePage> {
     }
     final top = MediaQuery.paddingOf(context).top;
     return ColoredBox(
-      color: const Color(0xFFF7F7F8),
-      child: RefreshIndicator(
+      color: context.hgSurfaceLow,
+      child: HgRefreshIndicator(
         onRefresh: () async {
           await Future.wait<void>([_load(force: true), _loadUnreadMessages()]);
         },
-        color: HgColors.orange,
         child: CustomScrollView(
           key: PageStorageKey<String>('profile-${auth.isLoggedIn}'),
           physics: const AlwaysScrollableScrollPhysics(
@@ -367,14 +367,17 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: EdgeInsets.fromLTRB(18, top + 5, 18, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFFFFDF9), Color(0xFFF5F2ED), Color(0xFFF7F7F8)],
-          stops: [0, 0.58, 1],
+          colors: dark
+              ? const [Color(0xFF171719), Color(0xFF111112), Color(0xFF0B0B0C)]
+              : const [Color(0xFFFFFDF9), Color(0xFFF5F2ED), Color(0xFFF7F7F8)],
+          stops: const [0, 0.58, 1],
         ),
       ),
       child: Column(
@@ -419,8 +422,8 @@ class _ProfileHeader extends StatelessWidget {
                         user!.nickname,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF1D1D1F),
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 22,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.5,
@@ -431,10 +434,7 @@ class _ProfileHeader extends StatelessWidget {
                         'ID：${user!.id}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF88888D),
-                          fontSize: 12,
-                        ),
+                        style: TextStyle(color: context.hgMuted, fontSize: 12),
                       ),
                       if (user!.sign.isNotEmpty) ...[
                         const SizedBox(height: 4),
@@ -442,8 +442,8 @@ class _ProfileHeader extends StatelessWidget {
                           user!.sign,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF77777C),
+                          style: TextStyle(
+                            color: context.hgMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -496,7 +496,7 @@ class _HeaderIcon extends StatelessWidget {
       clipBehavior: Clip.none,
       children: [
         Material(
-          color: Colors.white.withValues(alpha: 0.62),
+          color: context.hgSurface.withValues(alpha: 0.72),
           shape: const CircleBorder(),
           child: InkWell(
             onTap: onTap,
@@ -504,7 +504,7 @@ class _HeaderIcon extends StatelessWidget {
             child: SizedBox(
               width: 38,
               height: 38,
-              child: Icon(icon, color: const Color(0xFF303034), size: 21),
+              child: Icon(icon, color: context.hgOnSurface, size: 21),
             ),
           ),
         ),
@@ -517,10 +517,7 @@ class _HeaderIcon extends StatelessWidget {
               height: 17,
               padding: const EdgeInsets.symmetric(horizontal: 4),
               alignment: Alignment.center,
-              decoration: const BoxDecoration(
-                color: HgColors.orange,
-                shape: BoxShape.circle,
-              ),
+              decoration: const BoxDecoration(shape: BoxShape.circle),
               child: Text(
                 badge > 99 ? '99+' : '$badge',
                 style: const TextStyle(
@@ -548,8 +545,8 @@ class _GuestProfile extends StatelessWidget {
         Container(
           width: 72,
           height: 72,
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: context.hgSurface,
             shape: BoxShape.circle,
           ),
           child: const Icon(
@@ -559,22 +556,22 @@ class _GuestProfile extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 15),
-        const Expanded(
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '登录黄果账号',
                 style: TextStyle(
-                  color: Color(0xFF1D1D1F),
+                  color: context.hgOnSurface,
                   fontSize: 21,
                   fontWeight: FontWeight.w800,
                 ),
               ),
-              SizedBox(height: 6),
+              const SizedBox(height: 6),
               Text(
                 '同步追剧、历史和点赞记录',
-                style: TextStyle(color: Color(0xFF85858A), fontSize: 12),
+                style: TextStyle(color: context.hgMuted, fontSize: 12),
               ),
             ],
           ),
@@ -584,8 +581,9 @@ class _GuestProfile extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: HgColors.ink,
             foregroundColor: Colors.white,
-            minimumSize: const Size(0, 38),
-            padding: const EdgeInsets.symmetric(horizontal: 16),
+            minimumSize: const Size(0, 40),
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10),
             ),
@@ -619,8 +617,8 @@ class _ProfileStat extends StatelessWidget {
               children: [
                 Text(
                   value,
-                  style: const TextStyle(
-                    color: Color(0xFF202124),
+                  style: TextStyle(
+                    color: context.hgOnSurface,
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                   ),
@@ -628,10 +626,7 @@ class _ProfileStat extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   label,
-                  style: const TextStyle(
-                    color: Color(0xFF77777C),
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: context.hgMuted, fontSize: 11),
                 ),
               ],
             ),
@@ -656,15 +651,15 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final actions = [
-      (Icons.star_rounded, '追剧', HgColors.ink, onCollections, 0),
-      (Icons.history_rounded, '历史', HgColors.ink, onHistory, 0),
-      (Icons.favorite_rounded, '喜欢', HgColors.ink, onLikes, 0),
+      (Icons.star_rounded, '追剧', context.hgOnSurface, onCollections, 0),
+      (Icons.history_rounded, '历史', context.hgOnSurface, onHistory, 0),
+      (Icons.favorite_rounded, '喜欢', context.hgOnSurface, onLikes, 0),
     ];
     return Container(
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.hgSurface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -691,7 +686,6 @@ class _QuickActions extends StatelessWidget {
                                 ),
                                 alignment: Alignment.center,
                                 decoration: const BoxDecoration(
-                                  color: HgColors.orange,
                                   shape: BoxShape.circle,
                                 ),
                                 child: Text(
@@ -709,8 +703,8 @@ class _QuickActions extends StatelessWidget {
                       const SizedBox(height: 7),
                       Text(
                         action.$2,
-                        style: const TextStyle(
-                          color: Color(0xFF3A3A3C),
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 11.5,
                           fontWeight: FontWeight.w500,
                         ),
@@ -737,24 +731,24 @@ class _GuestBenefits extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(14, 0, 14, 0),
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.hgSurface,
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         children: [
-          const Text(
+          Text(
             '登录后同步观看记录',
             style: TextStyle(
-              color: Color(0xFF2C2C2E),
+              color: context.hgOnSurface,
               fontSize: 15,
               fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
+          Text(
             '换设备也能接着上次看到的一集继续播放',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF85858A), fontSize: 12),
+            style: TextStyle(color: context.hgMuted, fontSize: 12),
           ),
           const SizedBox(height: 16),
           SizedBox(
@@ -764,6 +758,11 @@ class _GuestBenefits extends StatelessWidget {
               onPressed: onLogin,
               style: FilledButton.styleFrom(
                 backgroundColor: HgColors.ink,
+                minimumSize: const Size.fromHeight(44),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 0,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(11),
                 ),
@@ -822,8 +821,8 @@ class _LibraryCard extends StatelessWidget {
             item.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFF2C2C2E),
+            style: TextStyle(
+              color: context.hgOnSurface,
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
             ),
@@ -836,8 +835,8 @@ class _LibraryCard extends StatelessWidget {
                   episodeText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF79797E),
+                  style: TextStyle(
+                    color: context.hgMuted,
                     fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                   ),
@@ -846,10 +845,7 @@ class _LibraryCard extends StatelessWidget {
               if (item.progress > 0)
                 Text(
                   '${(item.progress * 100).round()}%',
-                  style: const TextStyle(
-                    color: Color(0xFF79797E),
-                    fontSize: 9.5,
-                  ),
+                  style: TextStyle(color: context.hgMuted, fontSize: 9.5),
                 ),
             ],
           ),
@@ -954,8 +950,8 @@ class _LegacyLibraryPageState extends State<_LegacyLibraryPage> {
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
-      body: RefreshIndicator(
+      backgroundColor: context.hgSurfaceLow,
+      body: HgRefreshIndicator(
         onRefresh: _load,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(
@@ -973,8 +969,8 @@ class _LegacyLibraryPageState extends State<_LegacyLibraryPage> {
                     ),
                     Text(
                       widget.favorites ? '我的追剧' : '观看历史',
-                      style: const TextStyle(
-                        color: Color(0xFF1F1F21),
+                      style: TextStyle(
+                        color: context.hgOnSurface,
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                       ),

@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 
 import '../api/hg_api.dart';
 import '../models/hg_models.dart';
-import '../theme/hg_theme.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import 'detail_page.dart';
 
 enum HgVideoMoreKind { recommend, newest }
@@ -120,9 +120,8 @@ class _VideoMorePageState extends State<VideoMorePage> {
     final theme = Theme.of(context);
     final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: () => _load(reset: true),
-        color: HgColors.orange,
         child: CustomScrollView(
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(

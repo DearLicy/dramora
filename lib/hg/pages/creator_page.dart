@@ -8,6 +8,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'detail_page.dart';
 import 'login_sheet.dart';
@@ -130,11 +131,11 @@ class _CreatorPageState extends State<CreatorPage> {
     final auth = context.watch<AuthController>();
     final isSelf = auth.user?.id == widget.userId;
     final top = MediaQuery.paddingOf(context).top;
+    final dark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
-      body: RefreshIndicator(
+      backgroundColor: context.hgSurfaceLow,
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: CustomScrollView(
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(
@@ -144,15 +145,21 @@ class _CreatorPageState extends State<CreatorPage> {
             SliverToBoxAdapter(
               child: Container(
                 padding: EdgeInsets.fromLTRB(16, top + 5, 16, 18),
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [
-                      Color(0xFFF1FAF6),
-                      Color(0xFFFFF6EF),
-                      Color(0xFFF7F7F8),
-                    ],
+                    colors: dark
+                        ? const [
+                            Color(0xFF14201B),
+                            Color(0xFF241A15),
+                            Color(0xFF111112),
+                          ]
+                        : const [
+                            Color(0xFFF1FAF6),
+                            Color(0xFFFFF6EF),
+                            Color(0xFFF7F7F8),
+                          ],
                   ),
                 ),
                 child: Column(
@@ -194,9 +201,10 @@ class _CreatorPageState extends State<CreatorPage> {
                                   user.nickname,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Color(0xFF202124),
+                                  style: TextStyle(
+                                    color: context.hgOnSurface,
                                     fontSize: 22,
+
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.4,
                                   ),
@@ -204,8 +212,8 @@ class _CreatorPageState extends State<CreatorPage> {
                                 const SizedBox(height: 5),
                                 Text(
                                   'ID：${user.id}',
-                                  style: const TextStyle(
-                                    color: Color(0xFF85858A),
+                                  style: TextStyle(
+                                    color: context.hgMuted,
                                     fontSize: 11.5,
                                   ),
                                 ),
@@ -233,11 +241,11 @@ class _CreatorPageState extends State<CreatorPage> {
                                   horizontal: 14,
                                 ),
                                 backgroundColor: _following
-                                    ? const Color(0xFFF0F0F1)
-                                    : HgColors.ink,
+                                    ? context.hgSurfaceMuted
+                                    : context.hgOnSurface,
                                 foregroundColor: _following
-                                    ? const Color(0xFF5E5E63)
-                                    : Colors.white,
+                                    ? context.hgMuted
+                                    : context.hgSurface,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(10),
                                 ),
@@ -287,13 +295,13 @@ class _CreatorPageState extends State<CreatorPage> {
             else ...[
               SliverToBoxAdapter(
                 child: Container(
-                  color: Colors.white,
+                  color: context.hgSurface,
                   margin: const EdgeInsets.only(top: 10),
                   padding: const EdgeInsets.fromLTRB(16, 17, 16, 8),
-                  child: const Text(
+                  child: Text(
                     '作品',
                     style: TextStyle(
-                      color: Color(0xFF202124),
+                      color: context.hgOnSurface,
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
                     ),

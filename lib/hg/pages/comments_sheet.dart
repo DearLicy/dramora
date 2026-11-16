@@ -8,6 +8,7 @@ import '../auth/app_controllers.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_components.dart';
 import '../widgets/secure_cover.dart';
 import 'login_sheet.dart';
@@ -19,11 +20,9 @@ Future<void> showCommentsSheet(
   required String title,
   required int totalComments,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<void>(
+    context,
+    childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.42),
     builder: (_) => CommentsSheet(
       videoId: videoId,
@@ -54,7 +53,6 @@ class CommentsSheet extends StatefulWidget {
 
 class _CommentsSheetState extends State<CommentsSheet> {
   final _input = TextEditingController();
-  final _scroll = ScrollController();
   final _focus = FocusNode();
   final Set<int> _loadingReplies = {};
   List<HgComment> _items = const [];
@@ -70,20 +68,19 @@ class _CommentsSheetState extends State<CommentsSheet> {
   void initState() {
     super.initState();
     _total = widget.totalComments;
-    _scroll.addListener(_onScroll);
     _load(reset: true);
   }
 
   @override
   void dispose() {
     _input.dispose();
-    _scroll.dispose();
     _focus.dispose();
     super.dispose();
   }
 
-  void _onScroll() {
-    if (_scroll.position.extentAfter < 320) _loadMore();
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.metrics.extentAfter < 320) _loadMore();
+    return false;
   }
 
   Future<void> _load({required bool reset}) async {
@@ -220,8 +217,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOutCubic,
       height: sheetHeight,
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.hgSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       clipBehavior: Clip.antiAlias,
@@ -243,8 +240,8 @@ class _CommentsSheetState extends State<CommentsSheet> {
               children: [
                 Text(
                   '${_total > 0 ? formatCount(_total) : ''}条评论',
-                  style: const TextStyle(
-                    color: HgColors.ink,
+                  style: TextStyle(
+                    color: context.hgOnSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                   ),
@@ -253,9 +250,9 @@ class _CommentsSheetState extends State<CommentsSheet> {
                   left: 10,
                   child: IconButton(
                     onPressed: () => Navigator.maybePop(context),
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.keyboard_arrow_down_rounded,
-                      color: HgColors.ink,
+                      color: context.hgOnSurface,
                       size: 29,
                     ),
                   ),
@@ -289,35 +286,37 @@ class _CommentsSheetState extends State<CommentsSheet> {
         message: '看完这一集，来留下第一句话。',
       );
     }
-    return ListView.separated(
-      controller: _scroll,
-      padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-      itemCount: _items.length + (_loadingMore ? 1 : 0),
-      separatorBuilder: (_, _) => const SizedBox(height: 18),
-      itemBuilder: (context, index) {
-        if (index >= _items.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(10),
-              child: SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
+    return NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(18, 4, 18, 18),
+        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+        itemCount: _items.length + (_loadingMore ? 1 : 0),
+        separatorBuilder: (_, _) => const SizedBox(height: 18),
+        itemBuilder: (context, index) {
+          if (index >= _items.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(10),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
               ),
-            ),
+            );
+          }
+          final comment = _items[index];
+          return _CommentRow(
+            comment: comment,
+            loadingReplies: _loadingReplies.contains(comment.id),
+            onLike: () => _toggleLike(comment),
+            onToggleReplies: comment.replyCount > 0
+                ? () => _toggleReplies(comment)
+                : null,
           );
-        }
-        final comment = _items[index];
-        return _CommentRow(
-          comment: comment,
-          loadingReplies: _loadingReplies.contains(comment.id),
-          onLike: () => _toggleLike(comment),
-          onToggleReplies: comment.replyCount > 0
-              ? () => _toggleReplies(comment)
-              : null,
-        );
-      },
+        },
+      ),
     );
   }
 }
@@ -468,7 +467,7 @@ class _CommentRow extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.fromLTRB(11, 8, 11, 7),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7F7F8),
+                    color: context.hgSurfaceMuted,
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Column(
@@ -540,7 +539,7 @@ class _CommentComposer extends StatelessWidget {
               child: Container(
                 height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF4F4F5),
+                  color: context.hgSurfaceMuted,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: TextField(
@@ -569,7 +568,11 @@ class _CommentComposer extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Material(
-            color: enabled ? HgColors.ink : const Color(0xFFF0F0F1),
+            color: enabled
+                ? (Theme.of(context).brightness == Brightness.dark
+                      ? context.hgOnSurface
+                      : HgColors.ink)
+                : context.hgSurfaceMuted,
             borderRadius: BorderRadius.circular(10),
             child: InkWell(
               onTap: enabled ? onSend : onLogin,
@@ -578,18 +581,22 @@ class _CommentComposer extends StatelessWidget {
                 width: 46,
                 height: 44,
                 child: sending
-                    ? const Padding(
-                        padding: EdgeInsets.all(13),
+                    ? Padding(
+                        padding: const EdgeInsets.all(13),
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Colors.white,
+                          color: context.hgSurface,
                         ),
                       )
                     : Icon(
                         enabled
                             ? Icons.arrow_upward_rounded
                             : Icons.login_rounded,
-                        color: enabled ? Colors.white : const Color(0xFF747478),
+                        color: enabled
+                            ? (Theme.of(context).brightness == Brightness.dark
+                                  ? context.hgSurface
+                                  : Colors.white)
+                            : context.hgMuted,
                         size: 22,
                       ),
               ),

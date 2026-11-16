@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api/hg_api.dart';
 import 'auth/app_controllers.dart';
 import 'pages/root_shell.dart';
+import 'utils/hg_download_manager.dart';
 import 'theme/hg_theme.dart';
 
 class GuomuApp extends StatelessWidget {
@@ -38,6 +39,10 @@ class GuomuApp extends StatelessWidget {
         ChangeNotifierProvider<AuthController>(
           create: (context) =>
               AuthController(context.read<HgApi>(), preferences)..restore(),
+        ),
+        ChangeNotifierProvider<HgDownloadManager>(
+          create: (context) =>
+              HgDownloadManager(context.read<HgApi>(), preferences)..restore(),
         ),
         ChangeNotifierProvider<ThemeController>(
           create: (_) => ThemeController(preferences),

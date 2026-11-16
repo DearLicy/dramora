@@ -8,7 +8,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'hg_persistent_cache.dart';
 
 import '../models/hg_models.dart';
-import '../utils/hg_media_cache.dart';
 
 const String kHgDefaultBaseUrl = 'https://huangguoai.com';
 const String kHgBootstrapBaseUrl = 'https://2a52.bmikbxhi.cc';
@@ -89,6 +88,9 @@ class HgApi {
           : HgPersistentCache(preferences),
       _dio = dio ?? _createDio(baseUrl ?? HgRuntimeConfig.baseUrl) {
     if (dio == null) HgRuntimeConfig.setBaseUrl(_dio.options.baseUrl);
+    // 旧版本曾把短时播放地址持久化 12 小时；启动时清理，避免继续使用过期票据。
+    final persistent = _persistentCache;
+    if (persistent != null) unawaited(persistent.removePrefix('playback:'));
   }
 
   final Dio _dio;
@@ -652,10 +654,10 @@ class HgApi {
   }
 
   Future<HgPlayInfo> playback(int videoId, int episode) async {
-    final data = await _cachedData(
-      'playback:$videoId:$episode',
-      const Duration(hours: 12),
-      () => _request(
+    // 播放地址含 CDN 临时鉴权参数，不能写入 12 小时持久化缓存；
+    // 切集/重试时始终获取新的播放票据，避免旧 URL 触发 Source error。
+    final data = asMap(
+      await _request(
         'POST',
         '/api/videos/$videoId/episodes/$episode/playback',
         body: const <String, dynamic>{},
@@ -787,38 +789,9 @@ class HgApi {
     HgVideoDetail detail,
     int currentEpisode,
   ) async {
-    final episodeCount = detail.episodes.isNotEmpty
-        ? detail.episodes.length
-        : (detail.totalEpisodes > 0
-              ? detail.totalEpisodes
-              : detail.episodeCount);
-    if (episodeCount <= 0) return;
-    final wanted = <int>{
-      currentEpisode.clamp(1, episodeCount),
-      for (var distance = 1; distance <= 8; distance++) ...[
-        (currentEpisode - distance).clamp(1, episodeCount),
-        (currentEpisode + distance).clamp(1, episodeCount),
-      ],
-    }.toList(growable: false);
-    if (wanted.isEmpty) return;
-
-    Future<void> warm(int episode) async {
-      try {
-        final info = await playback(detail.id, episode);
-        if ((episode - currentEpisode).abs() <= 3) {
-          await HgMediaCache.prefetchHls(info.videoUrl, segments: 7);
-        }
-      } catch (_) {
-        // 单集预热失败不阻塞其他集。
-      }
-    }
-
-    // 当前集优先，随后按距离顺序补播放地址；最近 7 集同时预热首批媒体分片。
-    await warm(wanted.first);
-    final remaining = wanted.skip(1).toList(growable: false);
-    for (var index = 0; index < remaining.length; index += 3) {
-      await Future.wait(remaining.skip(index).take(3).map(warm));
-    }
+    // 播放地址是短时票据，提前获取并缓存反而会让邻近集拿到过期地址。
+    // 真正的邻近集预初始化由播放器的 PageView.prepare 完成。
+    await prefetchVideoDetails([detail.id], limit: 1);
   }
 
   Future<void> prefetchDrama(int videoId, {int episode = 1}) async {

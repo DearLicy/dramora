@@ -6,6 +6,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'short_video_page.dart';
 
@@ -52,10 +53,9 @@ class _TopicsPageState extends State<TopicsPage> {
   Widget build(BuildContext context) {
     final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      backgroundColor: HgColors.paper,
-      body: RefreshIndicator(
+      backgroundColor: context.hgSurfaceLow,
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
@@ -74,10 +74,10 @@ class _TopicsPageState extends State<TopicsPage> {
                       ),
                     ),
                     const SizedBox(width: 1),
-                    const Text(
+                    Text(
                       '专题',
                       style: TextStyle(
-                        color: HgColors.ink,
+                        color: context.hgOnSurface,
                         fontSize: 25,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.7,
@@ -111,13 +111,13 @@ class _TopicsPageState extends State<TopicsPage> {
                 ),
               ),
               if (_items.length > 1) ...[
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(18, 24, 18, 12),
+                    padding: const EdgeInsets.fromLTRB(18, 24, 18, 12),
                     child: Text(
                       '更多专题',
                       style: TextStyle(
-                        color: HgColors.ink,
+                        color: context.hgOnSurface,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.3,
@@ -268,7 +268,7 @@ class _TopicTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.hgSurface,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -439,10 +439,9 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
     final topic = _topic ?? widget.topic;
     final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      backgroundColor: HgColors.paper,
-      body: RefreshIndicator(
+      backgroundColor: context.hgSurfaceLow,
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: CustomScrollView(
           controller: _scroll,
           physics: const BouncingScrollPhysics(
@@ -535,10 +534,10 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           '专题简介',
                           style: TextStyle(
-                            color: HgColors.ink,
+                            color: context.hgOnSurface,
                             fontSize: 14,
                             fontWeight: FontWeight.w800,
                           ),
@@ -556,15 +555,15 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
                     ),
                   ),
                 ),
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(18, 25, 18, 12),
+                  padding: const EdgeInsets.fromLTRB(18, 25, 18, 12),
                   child: Row(
                     children: [
                       Text(
                         '专题片单',
                         style: TextStyle(
-                          color: HgColors.ink,
+                          color: context.hgOnSurface,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
@@ -613,13 +612,13 @@ class _TopicDetailPageState extends State<TopicDetailPage> {
                   ),
                 ),
               if (_related.isNotEmpty) ...[
-                const SliverToBoxAdapter(
+                SliverToBoxAdapter(
                   child: Padding(
-                    padding: EdgeInsets.fromLTRB(18, 26, 18, 12),
+                    padding: const EdgeInsets.fromLTRB(18, 26, 18, 12),
                     child: Text(
                       '相关专题',
                       style: TextStyle(
-                        color: HgColors.ink,
+                        color: context.hgOnSurface,
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
                         letterSpacing: -0.3,
@@ -683,8 +682,8 @@ class _RelatedTopic extends StatelessWidget {
               topic.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: HgColors.ink,
+              style: TextStyle(
+                color: context.hgOnSurface,
                 fontSize: 12.5,
                 fontWeight: FontWeight.w700,
               ),
@@ -707,16 +706,16 @@ class _TopicFaq extends StatelessWidget {
       margin: const EdgeInsets.fromLTRB(16, 22, 16, 0),
       padding: const EdgeInsets.fromLTRB(18, 17, 18, 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.hgSurface,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             '常见问题',
             style: TextStyle(
-              color: HgColors.ink,
+              color: context.hgOnSurface,
               fontSize: 16,
               fontWeight: FontWeight.w800,
             ),

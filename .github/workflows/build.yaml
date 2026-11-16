@@ -53,7 +53,8 @@ jobs:
             --no-wasm-dry-run \
             --base-href="/guomu/" \
             --dart-define="HG_API_BASE=$HG_API_BASE" \
-            --dart-define="HG_WEB_PROXY_URL=${{ vars.HG_WEB_PROXY_URL }}"
+            --dart-define="HG_WEB_PROXY_URL=${{ vars.HG_WEB_PROXY_URL }}" \
+            --dart-define="HG_WEB_PREVIEW_ONLY=true"
           touch build/web/.nojekyll
       - uses: actions/configure-pages@v5
         with:

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:guomu/hg/api/hg_api.dart';
 import 'package:guomu/hg/auth/app_controllers.dart';
+import 'package:guomu/hg/models/hg_download_models.dart';
 import 'package:guomu/hg/models/hg_models.dart';
 import 'package:guomu/hg/utils/hg_local_history.dart';
 import 'package:guomu/hg/utils/hg_update_service.dart';
@@ -105,6 +106,7 @@ void main() {
             'main': 'https://cdn.example.test/main.m3u8',
             'hevc': 'https://cdn.example.test/hevc.m3u8',
           },
+          'cdn': {'authKey': 'x-cdn-auth', 'authValue': 'token', 'app': '150'},
         },
         videoId: 7,
         episode: 3,
@@ -114,6 +116,9 @@ void main() {
       expect(info.episode, 3);
       expect(info.videoUrl, contains('main.m3u8'));
       expect(info.hevcUrl, contains('hevc.m3u8'));
+      expect(info.cdnAuthKey, 'x-cdn-auth');
+      expect(info.cdnAuthValue, 'token');
+      expect(info.cdnApp, '150');
     });
 
     test('parses rich post detail and real interaction counts', () {
@@ -323,6 +328,30 @@ void main() {
       expect(restored.sources, contains('https://example.org'));
       expect(restored.baseUrl, 'https://example.org');
     });
+  });
+
+  test('round-trips download tasks with cached episodes', () {
+    final task = HgDownloadTask(
+      videoId: 10586,
+      title: '任意门',
+      cover: 'https://example.test/cover.jpg',
+      totalEpisodes: 12,
+      episodes: const {
+        1: HgDownloadedEpisode(
+          number: 1,
+          directory: '/downloads/10586/1',
+          manifestPath: '/downloads/10586/1/index.m3u8',
+          bytes: 1024,
+          updatedAt: '2026-11-16',
+        ),
+      },
+      lastKnownEpisode: 12,
+    );
+    final decoded = HgDownloadTask.fromJson(task.toJson());
+    expect(decoded.videoId, 10586);
+    expect(decoded.episodes[1]?.manifestPath, endsWith('index.m3u8'));
+    expect(decoded.downloadedBytes, 1024);
+    expect(decoded.totalEpisodes, 12);
   });
 
   test('stores playback history locally and deduplicates by video', () async {

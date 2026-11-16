@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../auth/app_controllers.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 
 Future<bool> ensureLoggedIn(BuildContext context) async {
   final auth = context.read<AuthController>();
@@ -13,11 +14,9 @@ Future<bool> ensureLoggedIn(BuildContext context) async {
 }
 
 Future<bool?> showLoginSheet(BuildContext context) {
-  return showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<bool>(
+    context,
+    childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (_) => const LoginSheet(),
   );
@@ -80,9 +79,9 @@ class _LoginSheetState extends State<LoginSheet> {
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
         constraints: BoxConstraints(maxHeight: height * 0.78),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: context.hgSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SafeArea(
           top: false,
@@ -98,7 +97,7 @@ class _LoginSheetState extends State<LoginSheet> {
                       width: 38,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE4E4E6),
+                        color: context.hgLine,
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
@@ -109,9 +108,9 @@ class _LoginSheetState extends State<LoginSheet> {
                       const Expanded(child: SizedBox()),
                       IconButton(
                         onPressed: () => Navigator.maybePop(context),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
-                          color: Color(0xFF5F5F64),
+                          color: context.hgMuted,
                           size: 22,
                         ),
                       ),
@@ -120,8 +119,8 @@ class _LoginSheetState extends State<LoginSheet> {
                   const SizedBox(height: 2),
                   Text(
                     _register ? '创建黄果账号' : '登录黄果',
-                    style: const TextStyle(
-                      color: Color(0xFF1E1E21),
+                    style: TextStyle(
+                      color: context.hgOnSurface,
                       fontSize: 25,
                       height: 1.2,
                       fontWeight: FontWeight.w800,
@@ -131,8 +130,8 @@ class _LoginSheetState extends State<LoginSheet> {
                   const SizedBox(height: 6),
                   Text(
                     _register ? '注册后同步追剧、历史和互动记录' : '登录后同步追剧、历史和点赞记录',
-                    style: const TextStyle(
-                      color: Color(0xFF85858A),
+                    style: TextStyle(
+                      color: context.hgMuted,
                       fontSize: 12.5,
                       height: 1.5,
                     ),
@@ -142,7 +141,7 @@ class _LoginSheetState extends State<LoginSheet> {
                     height: 42,
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF3F3F4),
+                      color: context.hgSurfaceMuted,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
@@ -175,6 +174,7 @@ class _LoginSheetState extends State<LoginSheet> {
                     autofillHints: const [AutofillHints.username],
                     style: const TextStyle(fontSize: 14),
                     decoration: _fieldDecoration(
+                      context: context,
                       hint: _register ? '4-20 位字母、数字或下划线' : '请输入黄果账号',
                       icon: Icons.person_outline_rounded,
                     ),
@@ -205,6 +205,7 @@ class _LoginSheetState extends State<LoginSheet> {
                     onFieldSubmitted: (_) => _register ? null : _submit(),
                     style: const TextStyle(fontSize: 14),
                     decoration: _fieldDecoration(
+                      context: context,
                       hint: _register ? '6-20 位，建议字母+数字' : '请输入密码',
                       icon: Icons.lock_outline_rounded,
                       suffix: IconButton(
@@ -213,7 +214,7 @@ class _LoginSheetState extends State<LoginSheet> {
                           _obscure
                               ? Icons.visibility_off_outlined
                               : Icons.visibility_outlined,
-                          color: const Color(0xFF85858A),
+                          color: context.hgMuted,
                           size: 20,
                         ),
                       ),
@@ -245,6 +246,7 @@ class _LoginSheetState extends State<LoginSheet> {
                                 onFieldSubmitted: (_) => _submit(),
                                 style: const TextStyle(fontSize: 14),
                                 decoration: _fieldDecoration(
+                                  context: context,
                                   hint: '用于接收账号通知',
                                   icon: Icons.alternate_email_rounded,
                                 ),
@@ -288,8 +290,14 @@ class _LoginSheetState extends State<LoginSheet> {
                     child: FilledButton(
                       onPressed: _loading ? null : _submit,
                       style: FilledButton.styleFrom(
-                        backgroundColor: HgColors.ink,
-                        foregroundColor: Colors.white,
+                        backgroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? context.hgOnSurface
+                            : HgColors.ink,
+                        foregroundColor:
+                            Theme.of(context).brightness == Brightness.dark
+                            ? context.hgSurface
+                            : Colors.white,
                         disabledBackgroundColor: const Color(0xFFB9B9BD),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(13),
@@ -317,10 +325,7 @@ class _LoginSheetState extends State<LoginSheet> {
                   Text(
                     '凭据仅发送至黄果站点；果幕不保存密码。',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Color(0xFFA0A0A4),
-                      fontSize: 10.5,
-                    ),
+                    style: TextStyle(color: context.hgSubtle, fontSize: 10.5),
                   ),
                 ],
               ),
@@ -332,17 +337,18 @@ class _LoginSheetState extends State<LoginSheet> {
   }
 
   InputDecoration _fieldDecoration({
+    required BuildContext context,
     required String hint,
     required IconData icon,
     Widget? suffix,
   }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFA2A2A6), fontSize: 13),
-      prefixIcon: Icon(icon, color: const Color(0xFF85858A), size: 20),
+      hintStyle: TextStyle(color: context.hgMuted, fontSize: 13),
+      prefixIcon: Icon(icon, color: context.hgMuted, size: 20),
       suffixIcon: suffix,
       filled: true,
-      fillColor: const Color(0xFFF5F5F6),
+      fillColor: context.hgSurfaceMuted,
       contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -354,7 +360,7 @@ class _LoginSheetState extends State<LoginSheet> {
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF242427), width: 1.2),
+        borderSide: BorderSide(color: context.hgOnSurface, width: 1.2),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
@@ -390,7 +396,7 @@ class _ModeTab extends StatelessWidget {
           curve: Curves.easeOutCubic,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: selected ? Colors.white : Colors.transparent,
+            color: selected ? context.hgSurface : Colors.transparent,
             borderRadius: BorderRadius.circular(9),
             boxShadow: selected
                 ? const [
@@ -405,7 +411,7 @@ class _ModeTab extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              color: selected ? HgColors.ink : const Color(0xFF85858A),
+              color: selected ? context.hgOnSurface : context.hgMuted,
               fontSize: 12.5,
               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
             ),
@@ -425,8 +431,8 @@ class _FieldLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: Color(0xFF5F5F64),
+      style: TextStyle(
+        color: context.hgMuted,
         fontSize: 11.5,
         fontWeight: FontWeight.w600,
       ),

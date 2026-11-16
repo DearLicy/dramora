@@ -3,9 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../api/hg_api.dart';
 import '../models/hg_models.dart';
-import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import 'detail_page.dart';
 import 'tag_feed_page.dart';
 
@@ -146,9 +146,8 @@ class _DramaCategoryPageState extends State<DramaCategoryPage> {
         .take(10)
         .toList(growable: false);
     return Scaffold(
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: CustomScrollView(
           controller: _scroll,
           physics: const AlwaysScrollableScrollPhysics(

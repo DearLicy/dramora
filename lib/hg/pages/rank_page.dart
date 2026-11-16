@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -6,6 +8,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'short_video_page.dart';
 
@@ -25,58 +28,63 @@ class _RankPageState extends State<RankPage> {
     ('potential', '潜力榜', '正在上升的新剧'),
   ];
 
+  late final PageController _pageController;
   String _kind = 'hot';
-  List<HgRankItem> _items = const [];
   final Map<String, List<HgRankItem>> _cache = {};
-  bool _loading = true;
-  Object? _error;
+  final Set<String> _loadingKinds = {};
+  final Map<String, Object?> _errors = {};
 
   @override
   void initState() {
     super.initState();
-    _load();
+    _pageController = PageController();
+    unawaited(_load('hot'));
   }
 
-  Future<void> _load() async {
-    final kind = _kind;
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load(String kind, {bool force = false}) async {
+    if (!force && (_cache.containsKey(kind) || _loadingKinds.contains(kind))) {
+      return;
+    }
     setState(() {
-      _loading = true;
-      _error = null;
+      _loadingKinds.add(kind);
+      _errors.remove(kind);
     });
     try {
       final items = await context.read<HgApi>().rank(kind);
-      if (mounted) {
-        setState(() {
-          _cache[kind] = items;
-          if (_kind == kind) _items = items;
-        });
-      }
+      if (mounted) setState(() => _cache[kind] = items);
     } catch (error) {
-      if (mounted && _kind == kind) setState(() => _error = error);
+      if (mounted) setState(() => _errors[kind] = error);
     } finally {
-      if (mounted && _kind == kind) setState(() => _loading = false);
+      if (mounted) setState(() => _loadingKinds.remove(kind));
     }
   }
 
-  Future<void> _select(String kind) async {
+  void _select(String kind) {
     if (_kind == kind) return;
-    final cached = _cache[kind];
-    setState(() {
-      _kind = kind;
-      _items = cached ?? const [];
-      _loading = cached == null;
-      _error = null;
-    });
-    if (cached == null) await _load();
+    final index = tabs.indexWhere((item) => item.$1 == kind);
+    if (index < 0) return;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
   }
 
-  void _open(int index) {
+  void _open(int index, String kind) {
+    final items = _cache[kind] ?? const <HgRankItem>[];
+    if (items.isEmpty) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ShortVideoPage(
-          videoIds: _items.map((item) => item.videoId).toList(growable: false),
+          videoIds: items.map((item) => item.videoId).toList(growable: false),
           startIndex: index,
-          title: tabs.firstWhere((item) => item.$1 == _kind).$2,
+          title: tabs.firstWhere((item) => item.$1 == kind).$2,
         ),
       ),
     );
@@ -87,123 +95,147 @@ class _RankPageState extends State<RankPage> {
     final top = MediaQuery.paddingOf(context).top;
     final meta = tabs.firstWhere((item) => item.$1 == _kind);
     return ColoredBox(
-      color: HgColors.paper,
-      child: RefreshIndicator(
-        onRefresh: _load,
-        color: HgColors.orange,
-        child: CustomScrollView(
-          physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics(),
-          ),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(18, top + 14, 18, 0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    if (widget.showBack) ...[
-                      IconButton(
-                        onPressed: () => Navigator.maybePop(context),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(minWidth: 32),
-                        icon: const Icon(
-                          Icons.arrow_back_ios_new_rounded,
-                          size: 20,
+      color: context.hgSurfaceLow,
+      child: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(18, top + 14, 18, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (widget.showBack) ...[
+                  IconButton(
+                    onPressed: () => Navigator.maybePop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 32),
+                    icon: const Icon(
+                      Icons.arrow_back_ios_new_rounded,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '榜单',
+                        style: TextStyle(
+                          color: context.hgOnSurface,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.8,
                         ),
                       ),
-                      const SizedBox(width: 3),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '榜单',
-                            style: TextStyle(
-                              color: HgColors.ink,
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.8,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            meta.$3,
-                            style: const TextStyle(
-                              color: Color(0xFF85858A),
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        meta.$3,
+                        style: TextStyle(color: context.hgMuted, fontSize: 12),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 18, 16, 10),
+            child: _RankTabs(tabs: tabs, kind: _kind, onSelected: _select),
+          ),
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: tabs.length,
+              onPageChanged: (index) {
+                final kind = tabs[index].$1;
+                setState(() => _kind = kind);
+                if (!_cache.containsKey(kind) &&
+                    !_loadingKinds.contains(kind)) {
+                  unawaited(_load(kind));
+                }
+              },
+              itemBuilder: (context, index) => _buildRank(tabs[index].$1),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRank(String kind) {
+    final items = _cache[kind] ?? const <HgRankItem>[];
+    final loading = _loadingKinds.contains(kind);
+    final error = _errors[kind];
+    return HgRefreshIndicator(
+      onRefresh: () => _load(kind, force: true),
+      child: CustomScrollView(
+        key: PageStorageKey<String>('rank-$kind'),
+        physics: const BouncingScrollPhysics(
+          parent: AlwaysScrollableScrollPhysics(),
+        ),
+        slivers: [
+          if (loading && items.isEmpty)
+            const SliverToBoxAdapter(
+              child: HgLoading(variant: HgLoadingVariant.list),
+            )
+          else if (error != null && items.isEmpty)
+            SliverToBoxAdapter(
+              child: HgErrorState(
+                error: error,
+                onRetry: () => _load(kind, force: true),
+              ),
+            )
+          else if (items.isEmpty)
+            const SliverToBoxAdapter(
+              child: HgEmptyState(
+                icon: Icons.leaderboard_outlined,
+                title: '榜单暂时为空',
+              ),
+            )
+          else ...[
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
-                child: _RankTabs(tabs: tabs, kind: _kind, onSelected: _select),
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: _RankHero(
+                  item: items.first,
+                  onTap: () => _open(0, kind),
+                ),
               ),
             ),
-            if (_loading && _items.isEmpty)
-              const SliverToBoxAdapter(
-                child: HgLoading(variant: HgLoadingVariant.list),
-              )
-            else if (_error != null && _items.isEmpty)
-              SliverToBoxAdapter(
-                child: HgErrorState(error: _error!, onRetry: _load),
-              )
-            else if (_items.isEmpty)
-              const SliverToBoxAdapter(
-                child: HgEmptyState(
-                  icon: Icons.leaderboard_outlined,
-                  title: '榜单暂时为空',
-                ),
-              )
-            else ...[
+            if (items.length > 1) ...[
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                  child: _RankHero(item: _items.first, onTap: () => _open(0)),
-                ),
-              ),
-              if (_items.length > 1) ...[
-                const SliverToBoxAdapter(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(18, 24, 18, 12),
-                    child: Text(
-                      '本期完整榜单',
-                      style: TextStyle(
-                        color: HgColors.ink,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                      ),
+                  padding: const EdgeInsets.fromLTRB(18, 24, 18, 12),
+                  child: Text(
+                    '本期完整榜单',
+                    style: TextStyle(
+                      color: context.hgOnSurface,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ),
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 30),
-                  sliver: SliverList.separated(
-                    itemCount: _items.length - 1,
-                    separatorBuilder: (_, _) => const SizedBox(height: 9),
-                    itemBuilder: (context, index) {
-                      final itemIndex = index + 1;
-                      return _RankRow(
-                        item: _items[itemIndex],
-                        onTap: () => _open(itemIndex),
-                      );
-                    },
-                  ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 30),
+                sliver: SliverList.separated(
+                  itemCount: items.length - 1,
+                  separatorBuilder: (_, _) => const SizedBox(height: 9),
+                  itemBuilder: (context, index) {
+                    final itemIndex = index + 1;
+                    return _RankRow(
+                      item: items[itemIndex],
+                      onTap: () => _open(itemIndex, kind),
+                    );
+                  },
                 ),
-              ] else
-                const SliverToBoxAdapter(child: SizedBox(height: 30)),
-            ],
+              ),
+            ] else
+              const SliverToBoxAdapter(child: SizedBox(height: 30)),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -226,7 +258,7 @@ class _RankTabs extends StatelessWidget {
       height: 48,
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: const Color(0xFFEDEBE8),
+        color: context.hgSurfaceMuted,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Row(
@@ -242,15 +274,15 @@ class _RankTabs extends StatelessWidget {
                     curve: Curves.easeOutCubic,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: selected ? HgColors.ink : Colors.transparent,
+                      color: selected
+                          ? context.hgOnSurface
+                          : Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: AnimatedDefaultTextStyle(
                       duration: const Duration(milliseconds: 220),
                       style: TextStyle(
-                        color: selected
-                            ? Colors.white
-                            : const Color(0xFF717176),
+                        color: selected ? context.hgSurface : context.hgMuted,
                         fontSize: 12.5,
                         fontWeight: selected
                             ? FontWeight.w800
@@ -415,7 +447,7 @@ class _RankRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.hgSurface,
       borderRadius: BorderRadius.circular(20),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -463,8 +495,8 @@ class _RankRow extends StatelessWidget {
                         item.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: HgColors.ink,
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 14.5,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.2,

@@ -1,17 +1,49 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.1';
-  static const String buildNumber = '6';
-  static const String versionLabel = 'v1.4.1 (6)';
-  static const String releaseTitle = '在线更新与稳定版';
+  static const String version = '1.4.2';
+  static const String buildNumber = '7';
+  static const String versionLabel = 'v1.4.2 (7)';
+  static const String releaseTitle = '离线缓存与原生体验版';
   static const List<String> releaseNotes = [
-    '设置页与启动阶段支持通过 GitHub Releases 检查在线更新。',
-    '新增 GitHub Pages 在线预览，APK 与未签名 IPA 自动发布到 GitHub Releases。',
-    'GitHub 数据源清单增加 Contents API、jsDelivr 与 Raw 多级回退。',
-    '修复 iOS 安装包结构错误，导致部分签名工具提示未找到 App 包的问题。',
-    '产品介绍与关于页面改为面向中文用户的正式说明。',
+    '剧场、吃瓜和榜单支持左右滑动切换 Tab。',
+    '半屏弹窗统一支持拖拽关闭、半屏和接近全屏展示。',
+    '新增整部短剧缓存、下载进度与实时网速、离线观看和追更通知。',
+    '未完结短剧可以记录追更并按设置自动缓存新集。',
+    'iOS 支持灵动岛与锁屏实时活动，Android 与 iOS 完善通知权限。',
+    '修复深色模式残留白底、登录文字被挤压和 Android 返回过渡效果。',
+    '修复播放地址缓存过期导致的视频源加载失败，并在切集时自动重取播放地址。',
+    '首页轮播改为无限连续滚动，并从真实短剧详情补全横幅标题。',
+    'GitHub Pages 预览只展示界面，不加载视频并提示前往 Releases 下载。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.2',
+      buildNumber: '7',
+      date: '2026-11-16',
+      title: '离线缓存与原生体验版',
+      features: [
+        '新增整部短剧缓存、下载任务页面、下载进度与实时网速。',
+        '未完结短剧支持记录追更，更新后可通知并可选自动缓存新集。',
+        'iOS 支持灵动岛和锁屏实时活动，显示封面、剧名、观看集数与进度。',
+        '设置页新增追更通知、自动缓存和后台检查开关。',
+      ],
+      improvements: [
+        '剧场、吃瓜和榜单支持左右滑动切换 Tab，切换时保留页面状态。',
+        '半屏弹窗统一为可拖拽的原生式面板，支持关闭、半屏和全屏吸附。',
+        '首页轮播改为连续无限滚动，并从真实短剧详情补全横幅标题。',
+        '全面修复深色模式的页面、卡片和弹窗背景；下拉刷新改为原生风格。',
+        '移除 Android 预测式返回的半透明过渡，统一为整页推入。',
+        'GitHub Pages 改为纯界面预览，进入播放页直接阻止视频加载。',
+      ],
+      fixes: [
+        '修复“我的”页登录按钮文字被 padding 挤压的问题。',
+        '修复轮播最后一张跳回第一张、以及空标题显示为“精选短剧”的问题。',
+        '修复下载内容重启应用后无法恢复、离线找不到本地播放列表的问题。',
+        '修复切换邻近剧集时默认不自动播放的问题。',
+        '修复设置页更新记录与功能入口表达不清晰的问题。',
+        '修复播放地址缓存过期导致的 Source error，重试时自动获取新地址。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.1',
       buildNumber: '6',

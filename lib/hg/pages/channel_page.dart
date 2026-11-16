@@ -6,6 +6,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import 'detail_page.dart';
 
 class ChannelPage extends StatefulWidget {
@@ -123,7 +124,7 @@ class _ChannelPageState extends State<ChannelPage> {
     final top = MediaQuery.paddingOf(context).top;
     final theme = Theme.of(context);
     return Scaffold(
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
         child: CustomScrollView(
           controller: _scroll,

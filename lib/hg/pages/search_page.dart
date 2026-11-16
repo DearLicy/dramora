@@ -486,7 +486,7 @@ class _SuggestionSection extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 6),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.hgSurface,
           borderRadius: BorderRadius.circular(13),
         ),
         child: Column(

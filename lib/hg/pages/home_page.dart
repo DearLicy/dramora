@@ -9,6 +9,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/secure_cover.dart';
 import 'detail_page.dart';
 import 'drama_category_page.dart';
@@ -158,24 +159,49 @@ class _HomePageState extends State<HomePage> {
   Future<void> _enrichBanners(HgApi api) async {
     if (_home.banners.isEmpty) return;
     final enriched = List<HgHomeBanner>.from(_home.banners);
-    final total = enriched.length.clamp(0, 4);
-    for (var index = 0; index < total; index += 2) {
-      final end = (index + 2).clamp(0, total);
+    final titleById = <int, String>{};
+    for (final card in [..._home.featured, ..._home.latest, ..._latest]) {
+      if (card.title.trim().isNotEmpty) titleById[card.id] = card.title.trim();
+    }
+
+    // 首页 banners 当前只返回 video_id，标题为空。先从推荐/上新列表补，
+    // 再请求详情兜底，绝不把“精选短剧”写进正式标题。
+    try {
+      final recommendations = await api.homeRecommendationsPage(size: 60);
+      for (final card in recommendations.items) {
+        if (card.title.trim().isNotEmpty) {
+          titleById[card.id] = card.title.trim();
+        }
+      }
+    } catch (_) {
+      // 推荐列表不可用时继续使用详情接口。
+    }
+
+    final total = enriched.length;
+    for (var index = 0; index < total; index += 3) {
+      final end = (index + 3).clamp(0, total);
       await Future.wait([
         for (var cursor = index; cursor < end; cursor++)
           () async {
             final current = enriched[cursor];
+            final localTitle = current.title.trim().isNotEmpty
+                ? current.title.trim()
+                : titleById[current.videoId];
+            if (localTitle != null && localTitle.isNotEmpty) {
+              enriched[cursor] = current.copyWith(title: localTitle);
+              return;
+            }
             try {
               final detail = await api.video(current.videoId);
               enriched[cursor] = current.copyWith(
-                title: detail.title,
+                title: detail.title.trim(),
                 description: detail.description,
                 score: detail.score,
                 episodeLabel: detail.episodeLabel,
                 tags: detail.tags.take(3).toList(growable: false),
               );
             } catch (_) {
-              // 保留 /api/home 已返回的海报与简介。
+              // 保留海报与简介；标题为空时由 UI 隐藏标题层。
             }
           }(),
       ]);
@@ -207,7 +233,7 @@ class _HomePageState extends State<HomePage> {
           videoId: banner.videoId,
           preloaded: HgVideoCard(
             id: banner.videoId,
-            title: banner.title.isEmpty ? '精选短剧' : banner.title,
+            title: banner.title.trim(),
             cover: banner.image,
             description: banner.description,
             score: banner.score,
@@ -326,9 +352,8 @@ class _HomePageState extends State<HomePage> {
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1200),
-              child: RefreshIndicator(
+              child: HgRefreshIndicator(
                 onRefresh: _load,
-                color: HgColors.orange,
                 child: CustomScrollView(
                   physics: const BouncingScrollPhysics(
                     parent: AlwaysScrollableScrollPhysics(),
@@ -359,7 +384,7 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '精选推荐',
-                          eyebrow: 'FEATURED',
+                          eyebrow: '为你精选',
                           actionLabel: '更多推荐',
                           onMore: () =>
                               _openVideoMore(HgVideoMoreKind.recommend),
@@ -387,7 +412,7 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '最近上新',
-                          eyebrow: 'JUST UPDATED',
+                          eyebrow: '新剧上线',
                           actionLabel: '全部上新',
                           onMore: () => _openVideoMore(HgVideoMoreKind.newest),
                         ),
@@ -419,7 +444,7 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '热播短剧',
-                          eyebrow: 'HOT NOW',
+                          eyebrow: '正在热播',
                           actionLabel: '更多热播',
                           onMore: _openHotMore,
                         ),
@@ -452,7 +477,7 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '专题推荐',
-                          eyebrow: 'COLLECTIONS',
+                          eyebrow: '主题合集',
                           actionLabel: '全部专题',
                           onMore: _openTopics,
                         ),
@@ -689,20 +714,27 @@ class _HomeHeroCarousel extends StatefulWidget {
 }
 
 class _HomeHeroCarouselState extends State<_HomeHeroCarousel> {
-  final _controller = PageController(viewportFraction: 0.92);
+  static const _initialPage = 10000;
+  late final PageController _controller;
   Timer? _timer;
+  int _absolutePage = _initialPage;
   int _index = 0;
+
+  int get _loopCount => widget.banners.length;
 
   @override
   void initState() {
     super.initState();
-    if (widget.banners.length > 1) {
+    _controller = PageController(
+      initialPage: _initialPage,
+      viewportFraction: 0.92,
+    );
+    if (_loopCount > 1) {
       _timer = Timer.periodic(const Duration(seconds: 5), (_) {
         if (!mounted || !_controller.hasClients) return;
-        final next = (_index + 1) % widget.banners.length;
         _controller.animateToPage(
-          next,
-          duration: const Duration(milliseconds: 560),
+          _absolutePage + 1,
+          duration: const Duration(milliseconds: 620),
           curve: Curves.easeOutCubic,
         );
       });
@@ -725,10 +757,14 @@ class _HomeHeroCarouselState extends State<_HomeHeroCarousel> {
           height: height,
           child: PageView.builder(
             controller: _controller,
-            itemCount: widget.banners.length,
-            onPageChanged: (value) => setState(() => _index = value),
+            onPageChanged: (value) {
+              setState(() {
+                _absolutePage = value;
+                _index = value % _loopCount;
+              });
+            },
             itemBuilder: (context, index) {
-              final banner = widget.banners[index];
+              final banner = widget.banners[index % _loopCount];
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: _HeroSlide(
@@ -834,18 +870,20 @@ class _HeroSlide extends StatelessWidget {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    banner.title.isEmpty ? '精选短剧' : banner.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 21,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
+                  if (banner.title.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      banner.title.trim(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -0.5,
+                      ),
                     ),
-                  ),
+                  ],
                   if (banner.description.isNotEmpty) ...[
                     const SizedBox(height: 4),
                     Text(

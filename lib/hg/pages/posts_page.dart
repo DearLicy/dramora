@@ -12,7 +12,9 @@ import '../auth/app_controllers.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/hg_share_sheet.dart';
 import '../widgets/hg_video_controller.dart';
 import '../widgets/secure_cover.dart';
@@ -29,9 +31,145 @@ class PostsPage extends StatefulWidget {
 
 class _PostsPageState extends State<PostsPage> {
   static const _tabs = ['推荐', '黑料吃瓜', '短剧剧评'];
-  final _scroll = ScrollController();
-  List<HgPost> _items = const [];
+  late final PageController _pageController;
   int _tab = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _selectTab(int index) {
+    if (index == _tab) return;
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.paddingOf(context).top;
+    return Scaffold(
+      backgroundColor: context.hgSurfaceLow,
+      body: Column(
+        children: [
+          Container(
+            color: context.hgSurfaceLow,
+            padding: EdgeInsets.fromLTRB(8, top + 4, 16, 0),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    if (widget.showBack) ...[
+                      IconButton(
+                        onPressed: () => Navigator.maybePop(context),
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                      ),
+                      const SizedBox(width: 3),
+                    ] else
+                      const SizedBox(width: 8),
+                    Text(
+                      widget.showBack ? '社区' : '吃瓜',
+                      style: TextStyle(
+                        color: context.hgOnSurface,
+                        fontSize: 23,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.6,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(
+                  height: 49,
+                  child: Row(
+                    children: List.generate(_tabs.length, (index) {
+                      final selected = index == _tab;
+                      return Expanded(
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => _selectTab(index),
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    if (selected) ...[
+                                      _PostTabGlyph(index: index),
+                                      const SizedBox(width: 5),
+                                    ],
+                                    Text(
+                                      _tabs[index],
+                                      style: TextStyle(
+                                        color: selected
+                                            ? context.hgOnSurface
+                                            : context.hgMuted,
+                                        fontSize: selected ? 15.5 : 14,
+                                        fontWeight: selected
+                                            ? FontWeight.w800
+                                            : FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                AnimatedContainer(
+                                  duration: const Duration(milliseconds: 180),
+                                  width: selected ? 18 : 0,
+                                  height: 3,
+                                  decoration: BoxDecoration(
+                                    color: context.hgOnSurface,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              itemCount: _tabs.length,
+              onPageChanged: (index) => setState(() => _tab = index),
+              itemBuilder: (context, index) =>
+                  _PostsFeedPane(key: ValueKey<int>(index), tabIndex: index),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PostsFeedPane extends StatefulWidget {
+  const _PostsFeedPane({super.key, required this.tabIndex});
+
+  final int tabIndex;
+
+  @override
+  State<_PostsFeedPane> createState() => _PostsFeedPaneState();
+}
+
+class _PostsFeedPaneState extends State<_PostsFeedPane> {
+  final ScrollController _scroll = ScrollController();
+  List<HgPost> _items = const [];
   int _page = 1;
   int _pages = 1;
   bool _loading = true;
@@ -42,7 +180,7 @@ class _PostsPageState extends State<PostsPage> {
   void initState() {
     super.initState();
     _scroll.addListener(_onScroll);
-    _load(reset: true);
+    unawaited(_load(reset: true));
   }
 
   @override
@@ -65,18 +203,15 @@ class _PostsPageState extends State<PostsPage> {
     }
     try {
       final api = context.read<HgApi>();
-      final page = switch (_tab) {
+      final nextPage = reset ? 1 : _page + 1;
+      final page = switch (widget.tabIndex) {
         1 => await api.postsByCategory(
           'remen-chigua',
-          page: reset ? 1 : _page + 1,
+          page: nextPage,
           size: 24,
         ),
-        2 => await api.postsByTag(
-          '黄果原创',
-          page: reset ? 1 : _page + 1,
-          size: 24,
-        ),
-        _ => await api.posts(page: reset ? 1 : _page + 1, size: 24),
+        2 => await api.postsByTag('黄果原创', page: nextPage, size: 24),
+        _ => await api.posts(page: nextPage, size: 24),
       };
       if (!mounted) return;
       setState(() {
@@ -124,167 +259,69 @@ class _PostsPageState extends State<PostsPage> {
     await _load(reset: false);
   }
 
-  Future<void> _selectTab(int index) async {
-    if (index == _tab) return;
-    setState(() {
-      _tab = index;
-      _items = const [];
-    });
-    await _load(reset: true);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final top = MediaQuery.paddingOf(context).top;
-    return Scaffold(
-      backgroundColor: const Color(0xFFF7F7F8),
-      body: RefreshIndicator(
-        onRefresh: () => _load(reset: true),
-        color: HgColors.orange,
-        child: CustomScrollView(
-          controller: _scroll,
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          slivers: [
-            SliverToBoxAdapter(
-              child: Container(
-                color: Colors.white,
-                padding: EdgeInsets.fromLTRB(8, top + 4, 16, 0),
-                child: Column(
-                  children: [
-                    Row(
-                      children: [
-                        if (widget.showBack) ...[
-                          IconButton(
-                            onPressed: () => Navigator.maybePop(context),
-                            icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                          ),
-                          const SizedBox(width: 3),
-                        ] else
-                          const SizedBox(width: 8),
-                        Text(
-                          widget.showBack ? '社区' : '吃瓜',
-                          style: const TextStyle(
-                            color: Color(0xFF1F1F21),
-                            fontSize: 23,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.6,
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(
-                      height: 49,
-                      child: Row(
-                        children: List.generate(_tabs.length, (index) {
-                          final selected = index == _tab;
-                          return Expanded(
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: () => _selectTab(index),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        if (selected) ...[
-                                          _PostTabGlyph(index: index),
-                                          const SizedBox(width: 5),
-                                        ],
-                                        Text(
-                                          _tabs[index],
-                                          style: TextStyle(
-                                            color: selected
-                                                ? HgColors.ink
-                                                : const Color(0xFF86868B),
-                                            fontSize: selected ? 15.5 : 14,
-                                            fontWeight: selected
-                                                ? FontWeight.w800
-                                                : FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    AnimatedContainer(
-                                      duration: const Duration(
-                                        milliseconds: 180,
-                                      ),
-                                      width: selected ? 18 : 0,
-                                      height: 3,
-                                      decoration: BoxDecoration(
-                                        color: HgColors.ink,
-                                        borderRadius: BorderRadius.circular(99),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        }),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (_loading)
-              const SliverToBoxAdapter(
-                child: HgLoading(variant: HgLoadingVariant.list),
-              )
-            else if (_error != null)
-              SliverToBoxAdapter(
-                child: HgErrorState(
-                  error: _error!,
-                  onRetry: () => _load(reset: true),
-                ),
-              )
-            else if (_items.isEmpty)
-              SliverToBoxAdapter(
-                child: HgEmptyState(
-                  icon: Icons.article_outlined,
-                  title: _tab == 2 ? '暂时没有剧评' : '暂时没有内容',
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
-                sliver: SliverList.separated(
-                  itemCount: _items.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    final post = _items[index];
-                    return _PostFeedCard(
-                      post: post,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => PostDetailPage(postId: post.id),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            SliverToBoxAdapter(
-              child: Center(
-                child: _loadingMore
-                    ? const Padding(
-                        padding: EdgeInsets.all(18),
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
-                      )
-                    : const SizedBox(height: 30),
-              ),
-            ),
-          ],
+    return HgRefreshIndicator(
+      onRefresh: () => _load(reset: true),
+      child: CustomScrollView(
+        controller: _scroll,
+        key: PageStorageKey<String>('posts-${widget.tabIndex}'),
+        physics: const AlwaysScrollableScrollPhysics(
+          parent: BouncingScrollPhysics(),
         ),
+        slivers: [
+          if (_loading)
+            const SliverToBoxAdapter(
+              child: HgLoading(variant: HgLoadingVariant.list),
+            )
+          else if (_error != null)
+            SliverToBoxAdapter(
+              child: HgErrorState(
+                error: _error!,
+                onRetry: () => _load(reset: true),
+              ),
+            )
+          else if (_items.isEmpty)
+            SliverToBoxAdapter(
+              child: HgEmptyState(
+                icon: Icons.article_outlined,
+                title: widget.tabIndex == 2 ? '暂时没有剧评' : '暂时没有内容',
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+              sliver: SliverList.separated(
+                itemCount: _items.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                itemBuilder: (context, index) {
+                  final post = _items[index];
+                  return _PostFeedCard(
+                    post: post,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => PostDetailPage(postId: post.id),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          SliverToBoxAdapter(
+            child: Center(
+              child: _loadingMore
+                  ? const Padding(
+                      padding: EdgeInsets.all(18),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    )
+                  : const SizedBox(height: 30),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -368,7 +405,7 @@ class _PostFeedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.hgSurface,
       borderRadius: BorderRadius.circular(13),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -397,8 +434,8 @@ class _PostFeedCard extends StatelessWidget {
                         post.title,
                         maxLines: 3,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF27272A),
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 14,
                           height: 1.38,
                           fontWeight: FontWeight.w700,
@@ -583,10 +620,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
   Widget build(BuildContext context) {
     final detail = _detail;
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: context.hgSurface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: context.hgSurface,
+        surfaceTintColor: context.hgSurface,
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.maybePop(context),
@@ -723,7 +760,7 @@ class _ArticleBody extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F5F6),
+                      color: context.hgSurfaceMuted,
                       borderRadius: BorderRadius.circular(7),
                     ),
                     child: Text(
@@ -851,9 +888,9 @@ class _PostActionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFF0F0F1))),
+      decoration: BoxDecoration(
+        color: context.hgSurface,
+        border: Border(top: BorderSide(color: context.hgLine)),
       ),
       child: SafeArea(
         top: false,
@@ -865,7 +902,7 @@ class _PostActionBar extends StatelessWidget {
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 13),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF5F5F6),
+                  color: context.hgSurfaceMuted,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: InkWell(
@@ -1181,7 +1218,7 @@ class _AdjacentPosts extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F7F8),
+                color: context.hgSurfaceMuted,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Column(
@@ -1245,8 +1282,8 @@ class _RelatedPostRow extends StatelessWidget {
                     post.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF353539),
+                    style: TextStyle(
+                      color: context.hgOnSurface,
                       fontSize: 13,
                       height: 1.42,
                       fontWeight: FontWeight.w600,
@@ -1255,10 +1292,7 @@ class _RelatedPostRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     '${formatCount(post.hot)} 热度',
-                    style: const TextStyle(
-                      color: Color(0xFF99999D),
-                      fontSize: 10,
-                    ),
+                    style: TextStyle(color: context.hgMuted, fontSize: 10),
                   ),
                 ],
               ),
@@ -1275,11 +1309,9 @@ Future<void> showPostCommentsSheet(
   required int postId,
   required int totalComments,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<void>(
+    context,
+    childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.36),
     builder: (_) =>
         _PostCommentsSheet(postId: postId, totalComments: totalComments),
@@ -1400,8 +1432,8 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
       padding: EdgeInsets.only(bottom: inset),
       child: Container(
         height: size.height * 0.72,
-        decoration: const BoxDecoration(
-          color: Colors.white,
+        decoration: BoxDecoration(
+          color: context.hgSurface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         clipBehavior: Clip.antiAlias,
@@ -1412,7 +1444,7 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E5E7),
+                color: context.hgLine,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -1423,8 +1455,8 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
                 children: [
                   Text(
                     '${formatCount(_total)}条评论',
-                    style: const TextStyle(
-                      color: HgColors.ink,
+                    style: TextStyle(
+                      color: context.hgOnSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1482,8 +1514,8 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
                                   const SizedBox(height: 3),
                                   Text(
                                     comment.text,
-                                    style: const TextStyle(
-                                      color: Color(0xFF242427),
+                                    style: TextStyle(
+                                      color: context.hgOnSurface,
                                       fontSize: 14,
                                       height: 1.55,
                                     ),
@@ -1544,7 +1576,7 @@ class _PostCommentsSheetState extends State<_PostCommentsSheet> {
                     child: Container(
                       height: 43,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF4F4F5),
+                        color: context.hgSurfaceMuted,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: TextField(

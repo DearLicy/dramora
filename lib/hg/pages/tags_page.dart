@@ -6,6 +6,7 @@ import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import 'tag_feed_page.dart';
 
 class TagsPage extends StatefulWidget {
@@ -101,10 +102,9 @@ class _TagsPageState extends State<TagsPage> {
     final tabItems = <String>['热门', ..._groups.map((item) => item.name)];
 
     return Scaffold(
-      backgroundColor: HgColors.paper,
-      body: RefreshIndicator(
+      backgroundColor: context.hgSurfaceLow,
+      body: HgRefreshIndicator(
         onRefresh: _load,
-        color: HgColors.orange,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(
             parent: AlwaysScrollableScrollPhysics(),
@@ -123,14 +123,14 @@ class _TagsPageState extends State<TagsPage> {
                       ),
                     ),
                     const SizedBox(width: 1),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             '标签',
                             style: TextStyle(
-                              color: HgColors.ink,
+                              color: context.hgOnSurface,
                               fontSize: 25,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.7,
@@ -140,7 +140,7 @@ class _TagsPageState extends State<TagsPage> {
                           Text(
                             '按题材发现下一部短剧',
                             style: TextStyle(
-                              color: Color(0xFF8D8D92),
+                              color: context.hgMuted,
                               fontSize: 11.5,
                             ),
                           ),
@@ -191,8 +191,8 @@ class _TagsPageState extends State<TagsPage> {
                     children: [
                       Text(
                         showingHot ? '热门标签' : group?.name ?? '全部标签',
-                        style: const TextStyle(
-                          color: HgColors.ink,
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.3,
@@ -271,13 +271,13 @@ class _TagCategoryTab extends StatelessWidget {
         curve: Curves.easeOutCubic,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
         decoration: BoxDecoration(
-          color: selected ? HgColors.ink : Colors.white,
+          color: selected ? context.hgOnSurface : context.hgSurface,
           borderRadius: BorderRadius.circular(100),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? Colors.white : const Color(0xFF6F6F74),
+            color: selected ? context.hgSurface : context.hgMuted,
             fontSize: 12,
             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
           ),
@@ -296,7 +296,7 @@ class _TagTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: context.hgSurface,
       borderRadius: BorderRadius.circular(18),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -307,11 +307,7 @@ class _TagTile extends StatelessWidget {
             children: [
               const Text(
                 '#',
-                style: TextStyle(
-                  color: HgColors.orange,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
               ),
               const SizedBox(width: 7),
               Expanded(
@@ -319,8 +315,8 @@ class _TagTile extends StatelessWidget {
                   tag.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: HgColors.ink,
+                  style: TextStyle(
+                    color: context.hgOnSurface,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                   ),

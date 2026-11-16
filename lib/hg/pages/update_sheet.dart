@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../app_metadata.dart';
 import '../theme/hg_theme.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../utils/hg_update_service.dart';
 
 Future<void> showHgUpdateResultSheet(
@@ -11,11 +12,8 @@ Future<void> showHgUpdateResultSheet(
   HgUpdateCheckResult result, {
   bool automatic = false,
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<void>(
+    context,
     barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (_) => _HgUpdateSheet(result: result, automatic: automatic),
   );
@@ -78,8 +76,8 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
     final maxHeight = MediaQuery.sizeOf(context).height * 0.82;
     return Container(
       constraints: BoxConstraints(maxHeight: maxHeight),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.hgSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
@@ -92,7 +90,7 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE4E4E6),
+                color: context.hgLine,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -123,8 +121,8 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                       children: [
                         Text(
                           hasUpdate ? '发现新版本' : '已经是最新版本',
-                          style: const TextStyle(
-                            color: HgColors.ink,
+                          style: TextStyle(
+                            color: context.hgOnSurface,
                             fontSize: 19,
                             fontWeight: FontWeight.w900,
                             letterSpacing: -0.4,
@@ -135,8 +133,8 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                           hasUpdate
                               ? '${release.tagName} · 当前 ${HgAppMetadata.versionLabel}'
                               : '当前 ${HgAppMetadata.versionLabel}',
-                          style: const TextStyle(
-                            color: Color(0xFF8A8A8F),
+                          style: TextStyle(
+                            color: context.hgMuted,
                             fontSize: 11,
                           ),
                         ),
@@ -158,8 +156,8 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       release.title,
-                      style: const TextStyle(
-                        color: Color(0xFF4F4F54),
+                      style: TextStyle(
+                        color: context.hgOnSurface.withValues(alpha: 0.72),
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
@@ -172,14 +170,14 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                   margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
                   padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFF7F6F3),
+                    color: context.hgSurfaceMuted,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: SingleChildScrollView(
                     child: Text(
                       body.isEmpty ? '本次更新暂无详细说明。' : body,
-                      style: const TextStyle(
-                        color: Color(0xFF5F5F64),
+                      style: TextStyle(
+                        color: context.hgOnSurface.withValues(alpha: 0.76),
                         fontSize: 12.5,
                         height: 1.7,
                       ),

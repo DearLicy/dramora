@@ -6,8 +6,22 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    private var deepLinkChannel: MethodChannel? = null
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        deepLinkChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            "com.guomu.huangguo/deeplink",
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                if (call.method == "getInitialLink") {
+                    result.success(intent?.data?.toString())
+                } else {
+                    result.notImplemented()
+                }
+            }
+        }
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "com.guomu.huangguo/share",
@@ -31,6 +45,14 @@ class MainActivity : FlutterActivity() {
             }
             startActivity(Intent.createChooser(intent, "分享到"))
             result.success(true)
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.data?.toString()?.let { link ->
+            deepLinkChannel?.invokeMethod("link", link)
         }
     }
 }

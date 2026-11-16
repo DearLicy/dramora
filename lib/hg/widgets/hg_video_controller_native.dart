@@ -1,10 +1,18 @@
+import 'dart:io';
+
 import 'package:flutter/widgets.dart';
 import 'package:video_player/video_player.dart';
 
 class HgVideoController extends ChangeNotifier {
-  HgVideoController({required this.url, required this.headers, this.onEnded});
+  HgVideoController({
+    required this.url,
+    required this.headers,
+    this.localPath,
+    this.onEnded,
+  });
 
   final String url;
+  final String? localPath;
   final Map<String, String> headers;
   final VoidCallback? onEnded;
 
@@ -14,6 +22,8 @@ class HgVideoController extends ChangeNotifier {
 
   bool get isReady => _controller?.value.isInitialized ?? false;
   bool get isPlaying => _controller?.value.isPlaying ?? false;
+  bool get hasError => _controller?.value.hasError ?? false;
+  String? get errorDescription => _controller?.value.errorDescription;
 
   double get aspectRatio {
     final ratio = _controller?.value.aspectRatio ?? 0;
@@ -35,11 +45,17 @@ class HgVideoController extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
-    final controller = VideoPlayerController.networkUrl(
-      Uri.parse(url),
-      httpHeaders: headers,
-      videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
-    );
+    final local = localPath?.trim() ?? '';
+    final controller = local.isNotEmpty
+        ? VideoPlayerController.file(
+            File(local),
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+          )
+        : VideoPlayerController.networkUrl(
+            Uri.parse(url),
+            httpHeaders: headers,
+            videoPlayerOptions: VideoPlayerOptions(mixWithOthers: false),
+          );
     await controller.initialize();
     await controller.setLooping(false);
     controller.addListener(_handleVideoValue);

@@ -57,6 +57,10 @@ if ! /usr/bin/unzip -Z1 "$OUT_DIR/$IPA_NAME" | grep -qx 'Payload/Runner.app/Info
   echo "IPA 包结构校验失败：压缩包内未找到 Payload/Runner.app/Info.plist。" >&2
   exit 1
 fi
+if ! /usr/bin/unzip -Z1 "$OUT_DIR/$IPA_NAME" | grep -qx 'Payload/Runner.app/PlugIns/GuomuWidget.appex/Info.plist'; then
+  echo "IPA 包结构校验失败：未嵌入灵动岛 Widget 扩展。" >&2
+  exit 1
+fi
 
 rm -rf "$PAYLOAD_DIR"
 

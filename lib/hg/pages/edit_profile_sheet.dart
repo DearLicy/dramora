@@ -6,6 +6,7 @@ import '../auth/app_controllers.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
 
 const List<String> kHgAvatarPalette = [
@@ -32,11 +33,9 @@ const List<String> kHgAvatarPalette = [
 ];
 
 Future<bool?> showEditProfileSheet(BuildContext context, HgUser user) {
-  return showModalBottomSheet<bool>(
-    context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<bool>(
+    context,
+    childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (_) => _EditProfileSheet(user: user),
   );
@@ -109,9 +108,9 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
         constraints: BoxConstraints(
           maxHeight: MediaQuery.sizeOf(context).height * 0.86,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: context.hgSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SafeArea(
           top: false,
@@ -234,7 +233,10 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     maxLength: 20,
                     onChanged: (_) => setState(() {}),
                     textInputAction: TextInputAction.next,
-                    decoration: _editDecoration(hint: '请输入昵称'),
+                    decoration: _editDecoration(
+                      context: context,
+                      hint: '请输入昵称',
+                    ),
                     validator: (value) {
                       final text = value?.trim() ?? '';
                       if (text.isEmpty) return '请输入昵称';
@@ -250,7 +252,10 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
                     maxLength: 100,
                     maxLines: 3,
                     textInputAction: TextInputAction.done,
-                    decoration: _editDecoration(hint: '写一句介绍，可不填'),
+                    decoration: _editDecoration(
+                      context: context,
+                      hint: '写一句介绍，可不填',
+                    ),
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 10),
@@ -309,12 +314,15 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
     );
   }
 
-  InputDecoration _editDecoration({required String hint}) {
+  InputDecoration _editDecoration({
+    required BuildContext context,
+    required String hint,
+  }) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Color(0xFFA2A2A6), fontSize: 13),
+      hintStyle: TextStyle(color: context.hgMuted, fontSize: 13),
       filled: true,
-      fillColor: const Color(0xFFF5F5F6),
+      fillColor: context.hgSurfaceMuted,
       counterText: '',
       contentPadding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
       border: OutlineInputBorder(

@@ -9,9 +9,9 @@ class UpdateHistoryPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: HgColors.paper,
+      backgroundColor: context.hgSurfaceLow,
       appBar: AppBar(
-        backgroundColor: HgColors.paper,
+        backgroundColor: context.hgSurfaceLow,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.maybePop(context),
@@ -46,7 +46,7 @@ class _ReleaseCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.hgSurface,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -57,13 +57,13 @@ class _ReleaseCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
                 decoration: BoxDecoration(
-                  color: current ? HgColors.ink : const Color(0xFFF1EFEB),
+                  color: current ? context.hgOnSurface : context.hgSurfaceMuted,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   current ? '当前版本' : '历史版本',
                   style: TextStyle(
-                    color: current ? Colors.white : const Color(0xFF747479),
+                    color: current ? context.hgSurface : context.hgMuted,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
@@ -72,8 +72,8 @@ class _ReleaseCard extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 release.versionLabel,
-                style: const TextStyle(
-                  color: Color(0xFF85858A),
+                style: TextStyle(
+                  color: context.hgMuted,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -82,18 +82,15 @@ class _ReleaseCard extends StatelessWidget {
               if (release.date.isNotEmpty)
                 Text(
                   release.date,
-                  style: const TextStyle(
-                    color: Color(0xFFA0A0A4),
-                    fontSize: 10,
-                  ),
+                  style: TextStyle(color: context.hgSubtle, fontSize: 10),
                 ),
             ],
           ),
           const SizedBox(height: 12),
           Text(
             release.title,
-            style: const TextStyle(
-              color: HgColors.ink,
+            style: TextStyle(
+              color: context.hgOnSurface,
               fontSize: 21,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.5,
@@ -126,8 +123,8 @@ class _ReleaseSection extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF4A4A4E),
+            style: TextStyle(
+              color: context.hgOnSurface.withValues(alpha: 0.72),
               fontSize: 12,
               fontWeight: FontWeight.w800,
             ),

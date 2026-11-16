@@ -15,11 +15,17 @@ extension type _Hls._(JSObject _) implements JSObject {
 }
 
 class HgVideoController extends ChangeNotifier {
-  HgVideoController({required this.url, required this.headers, this.onEnded});
+  HgVideoController({
+    required this.url,
+    required this.headers,
+    this.localPath,
+    this.onEnded,
+  });
 
   static int _nextId = 0;
 
   final String url;
+  final String? localPath;
   final Map<String, String> headers;
   final VoidCallback? onEnded;
 
@@ -28,6 +34,7 @@ class HgVideoController extends ChangeNotifier {
   _Hls? _hls;
   final List<StreamSubscription<dynamic>> _subscriptions = [];
   bool _ready = false;
+  String? _error;
   bool _playing = false;
   bool _ended = false;
   double _progress = 0;
@@ -39,6 +46,8 @@ class HgVideoController extends ChangeNotifier {
   bool _autoplayMuted = false;
 
   bool get isReady => _ready;
+  bool get hasError => _error != null;
+  String? get errorDescription => _error;
   bool get isPlaying => _playing;
   double get progress => _progress;
   double get aspectRatio => _aspectRatio;
@@ -72,6 +81,7 @@ class HgVideoController extends ChangeNotifier {
     _subscriptions.add(
       video.onCanPlay.listen((_) {
         _ready = true;
+        _error = null;
         _applyPendingSeek();
         notifyListeners();
       }),
@@ -98,6 +108,13 @@ class HgVideoController extends ChangeNotifier {
           _duration = Duration(milliseconds: (duration * 1000).round());
         }
         _applyPendingSeek();
+        notifyListeners();
+      }),
+    );
+    _subscriptions.add(
+      video.onError.listen((_) {
+        _error = video.error?.message;
+        _ready = false;
         notifyListeners();
       }),
     );

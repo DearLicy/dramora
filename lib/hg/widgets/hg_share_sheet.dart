@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../theme/hg_theme.dart';
+import 'hg_adaptive_sheet.dart';
 import '../utils/hg_share.dart';
 
 Future<void> showHgShareSheet(
@@ -10,11 +11,8 @@ Future<void> showHgShareSheet(
   required String url,
   String subtitle = '黄果短剧',
 }) {
-  return showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<void>(
+    context,
     barrierColor: Colors.black.withValues(alpha: 0.38),
     builder: (_) => _ShareSheet(title: title, url: url, subtitle: subtitle),
   );
@@ -85,8 +83,8 @@ class _ShareSheetState extends State<_ShareSheet> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: context.hgSurface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       padding: const EdgeInsets.fromLTRB(18, 9, 18, 12),
@@ -99,15 +97,15 @@ class _ShareSheetState extends State<_ShareSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: const Color(0xFFE5E5E7),
+                color: context.hgLine,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               '分享到',
               style: TextStyle(
-                color: Color(0xFF202124),
+                color: context.hgOnSurface,
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
               ),
@@ -117,7 +115,7 @@ class _ShareSheetState extends State<_ShareSheet> {
               width: double.infinity,
               padding: const EdgeInsets.all(13),
               decoration: BoxDecoration(
-                color: const Color(0xFFF7F7F8),
+                color: context.hgSurfaceMuted,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Row(
@@ -202,8 +200,8 @@ class _ShareSheetState extends State<_ShareSheet> {
               child: TextButton(
                 onPressed: () => Navigator.maybePop(context),
                 style: TextButton.styleFrom(
-                  backgroundColor: const Color(0xFFF5F5F6),
-                  foregroundColor: const Color(0xFF4A4A4E),
+                  backgroundColor: context.hgSurfaceMuted,
+                  foregroundColor: context.hgOnSurface,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

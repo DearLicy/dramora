@@ -8,9 +8,13 @@ import '../api/hg_api.dart';
 import '../auth/app_controllers.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
+import '../utils/hg_download_manager.dart';
 import '../utils/hg_format.dart';
 import '../utils/hg_local_history.dart';
+import '../widgets/hg_adaptive_sheet.dart';
+import '../services/hg_notification_service.dart';
 import '../widgets/hg_components.dart';
+import '../widgets/hg_refresh_indicator.dart';
 import '../widgets/hg_share_sheet.dart';
 import '../widgets/secure_cover.dart';
 import 'creator_page.dart';
@@ -93,15 +97,13 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
     final detail = _detail;
     final title = detail?.title ?? widget.preloaded?.title ?? '短剧';
     final episodeLabel = detail?.episodeLabel ?? '黄果短剧';
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
+    await showHgAdaptiveSheetBuilder<void>(
+      context,
       barrierColor: Colors.black.withValues(alpha: 0.38),
       builder: (sheetContext) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        decoration: BoxDecoration(
+          color: sheetContext.hgSurface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
         ),
         child: SafeArea(
           top: false,
@@ -129,8 +131,8 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: HgColors.ink,
+                            style: TextStyle(
+                              color: sheetContext.hgOnSurface,
                               fontSize: 18,
                               fontWeight: FontWeight.w800,
                             ),
@@ -177,6 +179,14 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                 },
               ),
               _DetailAction(
+                icon: Icons.download_for_offline_outlined,
+                title: '缓存全集',
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  unawaited(_cacheAllDrama());
+                },
+              ),
+              _DetailAction(
                 icon: Icons.play_arrow_rounded,
                 title: '从头播放',
                 onTap: () {
@@ -204,6 +214,21 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
         ),
       ),
     );
+  }
+
+  Future<void> _cacheAllDrama() async {
+    final detail = _detail;
+    if (detail == null) {
+      showHgSnack(context, '详情还在加载，请稍后再试');
+      return;
+    }
+    await HgNotificationService.requestPermissions();
+    if (!mounted) return;
+    final manager = context.read<HgDownloadManager>();
+    await manager.startDramaDownload(detail);
+    if (mounted) {
+      showHgSnack(context, '已加入缓存队列，可在“设置 → 我的下载”查看进度');
+    }
   }
 
   Future<void> _toggleFavorite() async {
@@ -255,7 +280,13 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                 ),
                 label: Text(favorite ? '已追剧' : '追剧'),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 4),
+              IconButton(
+                onPressed: detail == null ? null : _cacheAllDrama,
+                tooltip: '缓存全集',
+                icon: const Icon(Icons.download_for_offline_outlined),
+              ),
+              const SizedBox(width: 4),
               Expanded(
                 child: FilledButton.icon(
                   onPressed: _loading || detail == null ? null : _play,
@@ -273,7 +304,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
           ),
         ),
       ),
-      body: RefreshIndicator(
+      body: HgRefreshIndicator(
         onRefresh: _load,
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -392,7 +423,6 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: HgColors.orange,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Row(

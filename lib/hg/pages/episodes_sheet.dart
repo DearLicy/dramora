@@ -6,6 +6,7 @@ import '../auth/app_controllers.dart';
 import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_components.dart';
 import '../widgets/secure_cover.dart';
 import 'login_sheet.dart';
@@ -16,11 +17,9 @@ Future<int?> showEpisodesSheet(
   required HgVideoDetail detail,
   required int currentEpisode,
 }) {
-  return showModalBottomSheet<int>(
-    context: context,
-    useSafeArea: true,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  return showHgAdaptiveSheetBuilder<int>(
+    context,
+    childScrollable: true,
     barrierColor: Colors.black.withValues(alpha: 0.46),
     builder: (_) =>
         _EpisodesSheet(detail: detail, currentEpisode: currentEpisode),
@@ -97,9 +96,9 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
 
     return Container(
       height: height * 0.76,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      decoration: BoxDecoration(
+        color: context.hgSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -109,7 +108,7 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
             width: 38,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFE4E4E6),
+              color: context.hgLine,
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -138,8 +137,8 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
                         widget.detail.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: HgColors.ink,
+                        style: TextStyle(
+                          color: context.hgOnSurface,
                           fontSize: 18,
                           height: 1.25,
                           fontWeight: FontWeight.w800,
@@ -179,7 +178,7 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF1F1F2)),
+          Divider(height: 1, color: context.hgLine),
           Expanded(
             child: _tab == 0
                 ? _IntroPane(detail: widget.detail)
@@ -316,7 +315,7 @@ class _SheetTab extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: selected ? HgColors.ink : const Color(0xFF8E8E93),
+                color: selected ? context.hgOnSurface : context.hgMuted,
                 fontSize: 16,
                 fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
               ),
@@ -327,7 +326,7 @@ class _SheetTab extends StatelessWidget {
               width: selected ? 18 : 0,
               height: 3,
               decoration: BoxDecoration(
-                color: HgColors.ink,
+                color: context.hgOnSurface,
                 borderRadius: BorderRadius.circular(99),
               ),
             ),
@@ -358,7 +357,7 @@ class _SegmentTab extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: selected ? HgColors.ink : const Color(0xFFB1B1B5),
+            color: selected ? context.hgOnSurface : context.hgMuted,
             fontSize: 16,
             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
           ),
@@ -382,7 +381,9 @@ class _EpisodeCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? const Color(0xFFFFF1E8) : const Color(0xFFF5F5F6),
+      color: selected
+          ? HgColors.orange.withValues(alpha: 0.14)
+          : context.hgSurfaceMuted,
       borderRadius: BorderRadius.circular(9),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
@@ -391,7 +392,7 @@ class _EpisodeCell extends StatelessWidget {
           child: Text(
             '$episode',
             style: TextStyle(
-              color: selected ? HgColors.orange : const Color(0xFF2C2C2E),
+              color: selected ? HgColors.orange : context.hgOnSurface,
               fontSize: 16,
               fontWeight: selected ? FontWeight.w800 : FontWeight.w500,
             ),
@@ -415,8 +416,8 @@ class _IntroPane extends StatelessWidget {
         if (detail.description.trim().isNotEmpty)
           Text(
             detail.description,
-            style: const TextStyle(
-              color: Color(0xFF3A3A3C),
+            style: TextStyle(
+              color: context.hgOnSurface,
               fontSize: 14,
               height: 1.75,
             ),

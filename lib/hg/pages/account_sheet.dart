@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../auth/app_controllers.dart';
+import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
 import 'edit_profile_sheet.dart';
 import 'login_sheet.dart';
@@ -13,13 +15,10 @@ Future<void> showAccountSheet(BuildContext context) async {
     await showLoginSheet(context);
     return;
   }
-  await showModalBottomSheet<void>(
-    context: context,
-    useSafeArea: true,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
+  await showHgAdaptiveSheet<void>(
+    context,
     barrierColor: Colors.black.withValues(alpha: 0.34),
-    builder: (_) => const _AccountSheet(),
+    child: const _AccountSheet(),
   );
 }
 
@@ -33,55 +32,55 @@ class _AccountSheet extends StatelessWidget {
   }
 
   Future<void> _logout(BuildContext context) async {
-    final confirmed = await showModalBottomSheet<bool>(
-      context: context,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
+    final confirmed = await showHgAdaptiveSheet<bool>(
+      context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
-      builder: (context) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 4),
-              const Text(
-                '退出登录？',
-                style: TextStyle(
-                  color: Color(0xFF202124),
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
+      child: Builder(
+        builder: (context) => Container(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 18),
+          decoration: BoxDecoration(
+            color: context.hgSurface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const SizedBox(height: 4),
+                Text(
+                  '退出登录？',
+                  style: TextStyle(
+                    color: context.hgOnSurface,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '追剧和历史仍会保留在本机，重新登录后可继续同步账号数据。',
-                style: TextStyle(
-                  color: Color(0xFF77777C),
-                  fontSize: 12.5,
-                  height: 1.55,
+                const SizedBox(height: 8),
+                Text(
+                  '追剧和历史仍会保留在本机，重新登录后可继续同步账号数据。',
+                  style: TextStyle(
+                    color: context.hgMuted,
+                    fontSize: 12.5,
+                    height: 1.55,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              FilledButton(
-                onPressed: () => Navigator.of(context).pop(true),
-                style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                  backgroundColor: const Color(0xFFC64F45),
+                const SizedBox(height: 18),
+                FilledButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(46),
+                    backgroundColor: const Color(0xFFC64F45),
+                  ),
+                  child: const Text('退出登录'),
                 ),
-                child: const Text('退出登录'),
-              ),
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(false),
-                child: const Text('取消'),
-              ),
-            ],
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('取消'),
+                ),
+              ],
+            ),
           ),
         ),
       ),

@@ -1,16 +1,28 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../app_flags.dart';
 import '../app_metadata.dart';
 import '../auth/app_controllers.dart';
+import '../theme/hg_theme.dart';
+import '../utils/hg_download_manager.dart';
+import '../services/hg_deep_link_service.dart';
+import '../services/hg_notification_service.dart';
+import '../services/hg_settings.dart';
 import '../utils/hg_update_service.dart';
 import 'category_page.dart';
 import 'home_page.dart';
 import 'posts_page.dart';
 import 'profile_page.dart';
+import 'short_video_page.dart';
+import 'review_prompt.dart';
 import 'rank_page.dart';
 import 'settings_page.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import 'update_sheet.dart';
 
 class RootShell extends StatefulWidget {
@@ -20,7 +32,7 @@ class RootShell extends StatefulWidget {
   State<RootShell> createState() => _RootShellState();
 }
 
-class _RootShellState extends State<RootShell> {
+class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   static const _releaseSeenKey = 'guomu.release.seen';
   static const _updateCheckedKey = 'guomu.update.last_checked.v1';
 
@@ -47,14 +59,69 @@ class _RootShellState extends State<RootShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
+      unawaited(maybeShowHgReviewPrompt(context, prefs));
+      unawaited(
+        HgDeepLinkService.initialize(
+          onLink: (uri) async {
+            final id = int.tryParse(
+              uri.pathSegments.isEmpty ? '' : uri.pathSegments.last,
+            );
+            if (id == null || !mounted) return;
+            await Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ShortVideoPage(videoIds: [id]),
+              ),
+            );
+          },
+        ),
+      );
+      final downloads = context.read<HgDownloadManager>();
+      downloads.onUpdateFound = (task, count) async {
+        if (prefs.getBool(HgSettingsKeys.notificationsEnabled) ?? true) {
+          await HgNotificationService.showDramaUpdate(task, count);
+        }
+      };
+      downloads.onDownloadCompleted = (task) async {
+        if (prefs.getBool(HgSettingsKeys.notificationsEnabled) ?? true) {
+          await HgNotificationService.showOfflineReady(task);
+        }
+      };
       _runStartupChecks();
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      unawaited(context.read<HgDownloadManager>().checkForUpdates());
+    }
+  }
+
   Future<void> _runStartupChecks() async {
+    if (kIsWeb && kHgWebPreviewOnly) {
+      await Future<void>.delayed(const Duration(milliseconds: 420));
+      if (!mounted) return;
+      await showHgAdaptiveSheet<void>(
+        context,
+        child: const _WebPreviewNotice(),
+      );
+    }
     await _maybeShowReleaseNotes();
     if (mounted) await _maybeCheckUpdate();
+    if (mounted) {
+      await Future<void>.delayed(const Duration(seconds: 2));
+      if (mounted) await context.read<HgDownloadManager>().checkForUpdates();
+    }
   }
 
   Future<void> _maybeShowReleaseNotes() async {
@@ -62,11 +129,8 @@ class _RootShellState extends State<RootShell> {
     if (prefs.getString(_releaseSeenKey) == HgAppMetadata.versionLabel) return;
     await Future<void>.delayed(const Duration(milliseconds: 650));
     if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await showHgAdaptiveSheetBuilder<void>(
+      context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (_) => const HgReleaseNotesSheet(),
     );
@@ -135,11 +199,8 @@ class _RootShellState extends State<RootShell> {
       _sourceSheetShown = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        showModalBottomSheet<void>(
-          context: context,
-          useSafeArea: true,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
+        showHgAdaptiveSheetBuilder<void>(
+          context,
           barrierColor: Colors.black.withValues(alpha: 0.42),
           builder: (_) => const HgSourceEditorSheet(recovery: true),
         );
@@ -177,6 +238,77 @@ class _RootShellState extends State<RootShell> {
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _WebPreviewNotice extends StatelessWidget {
+  const _WebPreviewNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(22, 8, 22, 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: HgColors.orange.withValues(alpha: 0.13),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: const Icon(
+              Icons.open_in_new_rounded,
+              color: HgColors.orange,
+              size: 24,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '这是果幕的网页预览',
+            style: TextStyle(
+              color: context.hgOnSurface,
+              fontSize: 22,
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.5,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            ' GitHub Pages 仅用于浏览界面预览，不提供播放服务。请前往 GitHub Releases 下载安卓 APK 或未签名 IPA；iOS 安装包需要自行签名。',
+            style: TextStyle(
+              color: context.hgMuted,
+              fontSize: 13,
+              height: 1.65,
+            ),
+          ),
+          const SizedBox(height: 18),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: FilledButton.icon(
+              onPressed: () async {
+                final uri = Uri.tryParse(kHgLatestReleaseUrl);
+                if (uri != null) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.download_rounded, size: 19),
+              label: const Text('前往 Releases 下载'),
+            ),
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.maybePop(context),
+              child: const Text('先看看界面'),
+            ),
+          ),
+        ],
       ),
     );
   }

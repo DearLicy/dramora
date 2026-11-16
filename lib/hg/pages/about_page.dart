@@ -11,7 +11,7 @@ class AboutGuomuPage extends StatelessWidget {
     final theme = Theme.of(context);
     final top = MediaQuery.paddingOf(context).top;
     return Scaffold(
-      backgroundColor: HgColors.paper,
+      backgroundColor: context.hgSurfaceLow,
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
@@ -28,10 +28,10 @@ class AboutGuomuPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 1),
-                  const Text(
+                  Text(
                     '关于果幕',
                     style: TextStyle(
-                      color: HgColors.ink,
+                      color: context.hgOnSurface,
                       fontSize: 24,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.7,
@@ -202,17 +202,17 @@ class _FeatureStrip extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 13),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: context.hgSurface,
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Column(
                     children: [
-                      Icon(feature.$1, size: 21, color: HgColors.ink),
+                      Icon(feature.$1, size: 21, color: context.hgOnSurface),
                       const SizedBox(height: 7),
                       Text(
                         feature.$2,
-                        style: const TextStyle(
-                          color: Color(0xFF626267),
+                        style: TextStyle(
+                          color: context.hgMuted,
                           fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                         ),
@@ -246,7 +246,7 @@ class _AboutSection extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(18, 17, 18, 17),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.hgSurface,
         borderRadius: BorderRadius.circular(22),
       ),
       child: Column(
@@ -254,12 +254,12 @@ class _AboutSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(icon, size: 19, color: HgColors.ink),
+              Icon(icon, size: 19, color: context.hgOnSurface),
               const SizedBox(width: 8),
               Text(
                 title,
-                style: const TextStyle(
-                  color: HgColors.ink,
+                style: TextStyle(
+                  color: context.hgOnSurface,
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),

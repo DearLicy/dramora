@@ -46,9 +46,18 @@ ThemeData buildHgTheme(Brightness brightness) {
       onSurface: onSurface,
       outline: outline,
       outlineVariant: outline.withValues(alpha: 0.7),
+      surfaceContainer: dark
+          ? const Color(0xFF1D1D1F)
+          : const Color(0xFFF5F5F6),
+      surfaceContainerLow: dark
+          ? const Color(0xFF181819)
+          : const Color(0xFFFAFAFB),
+      surfaceContainerHigh: dark
+          ? const Color(0xFF28282A)
+          : const Color(0xFFEFEFF1),
       surfaceContainerHighest: dark
-          ? const Color(0xFF242424)
-          : const Color(0xFFF0F0F1),
+          ? const Color(0xFF303033)
+          : const Color(0xFFE8E8EB),
     ),
     scaffoldBackgroundColor: background,
     canvasColor: background,
@@ -230,7 +239,9 @@ ThemeData buildHgTheme(Brightness brightness) {
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+        // Flutter 的 predictive back 在 Android 上会叠加半透明旧页面，
+        // 对沉浸式短剧客户端显得像网页转场，统一使用整页推入。
+        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),
@@ -238,4 +249,17 @@ ThemeData buildHgTheme(Brightness brightness) {
       },
     ),
   );
+}
+
+extension HgThemeContext on BuildContext {
+  Color get hgSurface => Theme.of(this).colorScheme.surface;
+  Color get hgSurfaceLow => Theme.of(this).colorScheme.surfaceContainerLow;
+  Color get hgSurfaceMuted => Theme.of(this).colorScheme.surfaceContainer;
+  Color get hgSurfaceHigh => Theme.of(this).colorScheme.surfaceContainerHigh;
+  Color get hgOnSurface => Theme.of(this).colorScheme.onSurface;
+  Color get hgMuted =>
+      Theme.of(this).colorScheme.onSurface.withValues(alpha: 0.48);
+  Color get hgSubtle =>
+      Theme.of(this).colorScheme.onSurface.withValues(alpha: 0.34);
+  Color get hgLine => Theme.of(this).colorScheme.outlineVariant;
 }

@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api/hg_api.dart';
 import '../app_metadata.dart';
 import '../auth/app_controllers.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
+import '../services/hg_background_worker.dart';
+import '../services/hg_notification_service.dart';
+import '../services/hg_settings.dart';
+import '../utils/hg_download_manager.dart';
 import '../utils/hg_media_cache.dart';
 import '../utils/hg_update_service.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
 import 'about_page.dart';
+import 'downloads_page.dart';
 import 'login_sheet.dart';
 import 'update_history_page.dart';
 import 'update_sheet.dart';
@@ -27,18 +34,67 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _checkingUpdate = false;
   String _cacheMessage = '';
   String _updateMessage = '';
+  bool _notificationsEnabled = true;
+  bool _autoUpdateDownloads = true;
+  bool _backgroundUpdates = true;
 
   @override
   void initState() {
     super.initState();
     _loadCacheSize();
+    _loadPreferences();
+  }
+
+  Future<void> _loadPreferences() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _notificationsEnabled =
+          prefs.getBool(HgSettingsKeys.notificationsEnabled) ?? true;
+      _autoUpdateDownloads =
+          prefs.getBool(HgSettingsKeys.autoUpdateDownloads) ?? true;
+      _backgroundUpdates =
+          prefs.getBool(HgSettingsKeys.backgroundUpdates) ?? true;
+    });
+  }
+
+  Future<void> _setNotifications(bool value) async {
+    var next = value;
+    if (value) {
+      final granted = await HgNotificationService.requestPermissions();
+      if (!granted) {
+        next = false;
+        if (mounted) {
+          showHgSnack(context, '通知权限未开启，请在系统设置中允许果幕通知');
+        }
+      }
+    }
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(HgSettingsKeys.notificationsEnabled, next);
+    if (mounted) setState(() => _notificationsEnabled = next);
+  }
+
+  Future<void> _setAutoUpdateDownloads(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(HgSettingsKeys.autoUpdateDownloads, value);
+    if (mounted) setState(() => _autoUpdateDownloads = value);
+  }
+
+  Future<void> _setBackgroundUpdates(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(HgSettingsKeys.backgroundUpdates, value);
+    await HgBackgroundWorker.syncSchedule();
+    if (mounted) setState(() => _backgroundUpdates = value);
   }
 
   Future<void> _loadCacheSize() async {
-    final contentBytes = await context.read<HgApi>().cacheSizeBytes();
+    final api = context.read<HgApi>();
+    final downloads = context.read<HgDownloadManager>();
+    final contentBytes = await api.cacheSizeBytes();
     final mediaBytes = await HgMediaCache.sizeBytes();
+    final downloadBytes = await downloads.sizeBytes();
     if (mounted) {
-      setState(() => _cacheBytes = contentBytes + mediaBytes);
+      setState(() => _cacheBytes = contentBytes + mediaBytes + downloadBytes);
     }
   }
 
@@ -86,11 +142,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _editSource() async {
-    final changed = await showModalBottomSheet<bool>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
+    final changed = await showHgAdaptiveSheetBuilder<bool>(
+      context,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       builder: (_) => const HgSourceEditorSheet(),
     );
@@ -126,11 +179,9 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _showThemeSheet() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+    await showHgAdaptiveSheetBuilder<void>(
+      context,
+      childScrollable: true,
       barrierColor: Colors.black.withValues(alpha: 0.34),
       builder: (_) => const _ThemeSheet(),
     );
@@ -141,11 +192,12 @@ class _SettingsPageState extends State<SettingsPage> {
     final auth = context.watch<AuthController>();
     final source = context.watch<SourceController>();
     final theme = context.watch<ThemeController>();
+    final downloads = context.watch<HgDownloadManager>();
     final user = auth.user;
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F6),
+      backgroundColor: context.hgSurfaceLow,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF5F5F6),
+        backgroundColor: context.hgSurfaceLow,
         surfaceTintColor: Colors.transparent,
         leading: IconButton(
           onPressed: () => Navigator.maybePop(context),
@@ -201,6 +253,20 @@ class _SettingsPageState extends State<SettingsPage> {
             title: '播放与缓存',
             children: [
               _SettingsRow(
+                leading: const _RowIcon(Icons.download_for_offline_outlined),
+                title: '我的下载',
+                subtitle: downloads.tasks.isEmpty
+                    ? '离线缓存、下载进度与网速'
+                    : '${downloads.tasks.length} 部短剧 · ${downloads.tasks.where((item) => item.isDownloading).length} 个任务进行中',
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DownloadsPage(),
+                  ),
+                ),
+              ),
+              const _SettingsDivider(),
+              _SettingsRow(
                 leading: const _RowIcon(Icons.cleaning_services_outlined),
                 title: _clearingCache ? '正在清理…' : '清除缓存',
                 subtitle: _cacheMessage.isNotEmpty
@@ -208,6 +274,43 @@ class _SettingsPageState extends State<SettingsPage> {
                     : _formatBytes(_cacheBytes),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: _clearingCache ? null : _clearCache,
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _SettingsGroup(
+            title: '通知与后台',
+            children: [
+              _SettingsRow(
+                leading: const _RowIcon(Icons.notifications_none_rounded),
+                title: '追更通知',
+                subtitle: _notificationsEnabled
+                    ? '剧集更新时发送本机通知'
+                    : '已关闭，不再发送更新通知',
+                trailing: Switch.adaptive(
+                  value: _notificationsEnabled,
+                  onChanged: _setNotifications,
+                ),
+              ),
+              const _SettingsDivider(),
+              _SettingsRow(
+                leading: const _RowIcon(Icons.system_update_alt_rounded),
+                title: '自动缓存新集',
+                subtitle: _autoUpdateDownloads ? '新剧集出现后自动加入下载队列' : '仅提醒，不自动下载',
+                trailing: Switch.adaptive(
+                  value: _autoUpdateDownloads,
+                  onChanged: _setAutoUpdateDownloads,
+                ),
+              ),
+              const _SettingsDivider(),
+              _SettingsRow(
+                leading: const _RowIcon(Icons.sync_lock_rounded),
+                title: '后台检查追更',
+                subtitle: _backgroundUpdates ? '系统允许时每天检查一次' : '仅在打开应用时检查',
+                trailing: Switch.adaptive(
+                  value: _backgroundUpdates,
+                  onChanged: _setBackgroundUpdates,
+                ),
               ),
             ],
           ),
@@ -262,6 +365,13 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
               const _SettingsDivider(),
               _SettingsRow(
+                leading: const _RowIcon(Icons.info_outline_rounded),
+                title: '版本号',
+                subtitle: HgAppMetadata.versionLabel,
+                trailing: const SizedBox.shrink(),
+              ),
+              const _SettingsDivider(),
+              _SettingsRow(
                 leading: const _RowIcon(Icons.new_releases_outlined),
                 title: '更新记录',
                 subtitle:
@@ -304,8 +414,8 @@ class _SettingsGroup extends StatelessWidget {
           padding: const EdgeInsets.only(left: 4, bottom: 8),
           child: Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF77777C),
+            style: TextStyle(
+              color: context.hgMuted,
               fontSize: 11.5,
               fontWeight: FontWeight.w600,
             ),
@@ -313,7 +423,7 @@ class _SettingsGroup extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: context.hgSurface,
             borderRadius: BorderRadius.circular(16),
           ),
           clipBehavior: Clip.antiAlias,
@@ -360,7 +470,7 @@ class _SettingsRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: titleColor ?? const Color(0xFF28282B),
+                      color: titleColor ?? context.hgOnSurface,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -370,8 +480,8 @@ class _SettingsRow extends StatelessWidget {
                     subtitle,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF97979B),
+                    style: TextStyle(
+                      color: context.hgMuted,
                       fontSize: 10.5,
                       height: 1.35,
                     ),
@@ -408,7 +518,7 @@ class _SettingsDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Divider(height: 1, indent: 59, color: Color(0xFFF1F1F2));
+    return Divider(height: 1, indent: 59, color: context.hgLine);
   }
 }
 
@@ -427,9 +537,9 @@ class _ThemeSheet extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.52,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: context.hgSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -442,29 +552,29 @@ class _ThemeSheet extends StatelessWidget {
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE5E5E7),
+                  color: context.hgLine,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            const Text(
+            Text(
               '显示模式',
               style: TextStyle(
-                color: Color(0xFF202124),
+                color: context.hgOnSurface,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 5),
-            const Text(
+            Text(
               '选择适合当前环境的界面外观',
-              style: TextStyle(color: Color(0xFF8B8B90), fontSize: 11.5),
+              style: TextStyle(color: context.hgMuted, fontSize: 11.5),
             ),
             const SizedBox(height: 15),
             for (final choice in choices) ...[
               Material(
-                color: const Color(0xFFF5F5F6),
+                color: context.hgSurfaceMuted,
                 borderRadius: BorderRadius.circular(14),
                 child: InkWell(
                   onTap: () async {
@@ -479,11 +589,7 @@ class _ThemeSheet extends StatelessWidget {
                     ),
                     child: Row(
                       children: [
-                        Icon(
-                          choice.$2,
-                          size: 21,
-                          color: const Color(0xFF3A3A3C),
-                        ),
+                        Icon(choice.$2, size: 21, color: context.hgOnSurface),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -491,8 +597,8 @@ class _ThemeSheet extends StatelessWidget {
                             children: [
                               Text(
                                 choice.$3,
-                                style: const TextStyle(
-                                  color: Color(0xFF202124),
+                                style: TextStyle(
+                                  color: context.hgOnSurface,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -500,8 +606,8 @@ class _ThemeSheet extends StatelessWidget {
                               const SizedBox(height: 3),
                               Text(
                                 choice.$4,
-                                style: const TextStyle(
-                                  color: Color(0xFF8B8B90),
+                                style: TextStyle(
+                                  color: context.hgMuted,
                                   fontSize: 10.5,
                                 ),
                               ),
@@ -537,9 +643,9 @@ class HgReleaseNotesSheet extends StatelessWidget {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.82,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: context.hgSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: SafeArea(
         top: false,
@@ -573,14 +679,14 @@ class HgReleaseNotesSheet extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           '果幕 ${HgAppMetadata.versionLabel}',
                           style: TextStyle(
-                            color: Color(0xFF202124),
+                            color: context.hgOnSurface,
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                           ),
@@ -589,7 +695,7 @@ class HgReleaseNotesSheet extends StatelessWidget {
                         Text(
                           HgAppMetadata.releaseTitle,
                           style: TextStyle(
-                            color: Color(0xFF8B8B90),
+                            color: context.hgMuted,
                             fontSize: 11.5,
                           ),
                         ),
@@ -621,8 +727,8 @@ class HgReleaseNotesSheet extends StatelessWidget {
                     Expanded(
                       child: Text(
                         HgAppMetadata.releaseNotes[index],
-                        style: const TextStyle(
-                          color: Color(0xFF55555A),
+                        style: TextStyle(
+                          color: context.hgOnSurface.withValues(alpha: 0.72),
                           fontSize: 12.5,
                           height: 1.6,
                         ),
@@ -773,11 +879,11 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
             const SizedBox(height: 20),
             Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Text(
                     '数据源',
                     style: TextStyle(
-                      color: Color(0xFF202124),
+                      color: context.hgOnSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
@@ -785,10 +891,7 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
                 ),
                 Text(
                   '${source.sources.length} 个',
-                  style: const TextStyle(
-                    color: Color(0xFF949499),
-                    fontSize: 11,
-                  ),
+                  style: TextStyle(color: context.hgMuted, fontSize: 11),
                 ),
               ],
             ),
@@ -800,7 +903,7 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
               style: TextStyle(
                 color: widget.recovery
                     ? const Color(0xFFC64F45)
-                    : const Color(0xFF85858A),
+                    : context.hgMuted,
                 fontSize: 11.5,
                 height: 1.5,
               ),
@@ -823,8 +926,8 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Material(
                   color: item == source.baseUrl
-                      ? const Color(0xFFF1F1F2)
-                      : const Color(0xFFF7F7F8),
+                      ? context.hgSurfaceHigh
+                      : context.hgSurfaceMuted,
                   borderRadius: BorderRadius.circular(13),
                   child: InkWell(
                     onTap: () => _select(item),
@@ -849,7 +952,7 @@ class _SourceEditorSheetState extends State<HgSourceEditorSheet> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                color: const Color(0xFF343438),
+                                color: context.hgOnSurface,
                                 fontSize: 12,
                                 fontWeight: item == source.baseUrl
                                     ? FontWeight.w700
@@ -916,15 +1019,13 @@ Future<bool> _showConfirmSheet(
   required String confirmLabel,
   bool danger = false,
 }) async {
-  final result = await showModalBottomSheet<bool>(
-    context: context,
-    useSafeArea: true,
-    backgroundColor: Colors.transparent,
+  final result = await showHgAdaptiveSheetBuilder<bool>(
+    context,
     barrierColor: Colors.black.withValues(alpha: 0.4),
     builder: (context) => Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      decoration: BoxDecoration(
+        color: context.hgSurface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 9, 20, 18),
       child: SafeArea(
@@ -938,7 +1039,7 @@ Future<bool> _showConfirmSheet(
                 width: 38,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFE5E5E7),
+                  color: context.hgLine,
                   borderRadius: BorderRadius.circular(99),
                 ),
               ),
@@ -946,8 +1047,8 @@ Future<bool> _showConfirmSheet(
             const SizedBox(height: 22),
             Text(
               title,
-              style: const TextStyle(
-                color: Color(0xFF202124),
+              style: TextStyle(
+                color: context.hgOnSurface,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
               ),
@@ -955,8 +1056,8 @@ Future<bool> _showConfirmSheet(
             const SizedBox(height: 8),
             Text(
               message,
-              style: const TextStyle(
-                color: Color(0xFF77777C),
+              style: TextStyle(
+                color: context.hgMuted,
                 fontSize: 12.5,
                 height: 1.6,
               ),
