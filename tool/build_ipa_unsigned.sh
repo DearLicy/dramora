@@ -48,6 +48,14 @@ if [[ -z "$APP_EXECUTABLE" || ! -f "$APP_COPY/$APP_EXECUTABLE" ]]; then
   exit 1
 fi
 
+APP_BUNDLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$APP_COPY/Info.plist" 2>/dev/null || true)"
+WIDGET_INFO="$APP_COPY/PlugIns/GuomuWidget.appex/Info.plist"
+WIDGET_BUNDLE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleName' "$WIDGET_INFO" 2>/dev/null || true)"
+if [[ -z "$APP_BUNDLE_NAME" || -z "$WIDGET_BUNDLE_NAME" ]]; then
+  echo "IPA 包结构校验失败：主 App 或 Widget 扩展缺少非空 CFBundleName。" >&2
+  exit 1
+fi
+
 (
   cd "$OUT_DIR"
   /usr/bin/zip -qry "$IPA_NAME" Payload

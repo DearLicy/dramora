@@ -1,21 +1,36 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.2';
-  static const String buildNumber = '7';
-  static const String versionLabel = 'v1.4.2 (7)';
-  static const String releaseTitle = '离线缓存与原生体验版';
+  static const String version = '1.4.3';
+  static const String buildNumber = '8';
+  static const String versionLabel = 'v1.4.3 (8)';
+  static const String releaseTitle = '启动稳定性修复版';
   static const List<String> releaseNotes = [
-    '剧场、吃瓜和榜单支持左右滑动切换 Tab。',
-    '半屏弹窗统一支持拖拽关闭、半屏和接近全屏展示。',
-    '新增整部短剧缓存、下载进度与实时网速、离线观看和追更通知。',
-    '未完结短剧可以记录追更并按设置自动缓存新集。',
-    'iOS 支持灵动岛与锁屏实时活动，Android 与 iOS 完善通知权限。',
-    '修复深色模式残留白底、登录文字被挤压和 Android 返回过渡效果。',
-    '修复播放地址缓存过期导致的视频源加载失败，并在切集时自动重取播放地址。',
-    '首页轮播改为无限连续滚动，并从真实短剧详情补全横幅标题。',
-    'GitHub Pages 预览只展示界面，不加载视频并提示前往 Releases 下载。',
+    '修复 iOS 灵动岛 Widget 因 CFBundleName 为空而无法安装的问题。',
+    'Android 改为首帧优先启动，通知和后台任务在界面显示后异步初始化。',
+    'Android 启动页改为品牌化深色启动画面，不再出现空白黑屏。',
+    '通知图标加入资源保留规则，避免 Release 压缩后初始化失败。',
+    'IPA 构建新增主 App 与 Widget 的 CFBundleName 强校验。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.3',
+      buildNumber: '8',
+      date: '2026-11-16',
+      title: '启动稳定性修复版',
+      features: [
+        'Android 增加品牌化原生启动画面，并优先渲染 Flutter 首帧。',
+        '通知与后台任务改为界面显示后异步初始化，失败时自动降级。',
+        'iOS Widget 补齐标准 Bundle 元数据，IPA 构建时强制检查主 App 与扩展。',
+      ],
+      improvements: [
+        '通知图标加入 R8 资源保留清单，避免 Release 构建裁剪后导致插件初始化异常。',
+        'Android 启动链路增加超时与错误降级，不再因可选插件阻塞进入首页。',
+      ],
+      fixes: [
+        '修复 Sideloadly 安装时提示 Widget 缺少非空 CFBundleName 的问题。',
+        '修复 Android Release 版本启动后停留在黑屏的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.2',
       buildNumber: '7',
