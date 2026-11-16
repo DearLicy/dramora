@@ -97,31 +97,34 @@ class HgAdaptiveSheet extends StatelessWidget {
         ? const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics())
         : const ClampingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 
-    return DraggableScrollableSheet(
-      key: const ValueKey('hg-adaptive-sheet'),
-      expand: false,
-      initialChildSize: initial,
-      minChildSize: minimum,
-      maxChildSize: maximum,
-      snap: true,
-      snapSizes: snapSizes,
-      shouldCloseOnMinExtent: isDismissible,
-      builder: (context, scrollController) {
-        final content = childScrollable
-            ? PrimaryScrollController(
-                controller: scrollController,
-                child: child,
-              )
-            : SingleChildScrollView(
-                controller: scrollController,
-                physics: physics,
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.zero,
-                child: child,
-              );
-        return SafeArea(top: false, child: content);
-      },
+    return PopScope(
+      canPop: isDismissible,
+      child: DraggableScrollableSheet(
+        key: const ValueKey('hg-adaptive-sheet'),
+        expand: false,
+        initialChildSize: initial,
+        minChildSize: minimum,
+        maxChildSize: maximum,
+        snap: true,
+        snapSizes: snapSizes,
+        shouldCloseOnMinExtent: isDismissible,
+        builder: (context, scrollController) {
+          final content = childScrollable
+              ? PrimaryScrollController(
+                  controller: scrollController,
+                  child: child,
+                )
+              : SingleChildScrollView(
+                  controller: scrollController,
+                  physics: physics,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  padding: EdgeInsets.zero,
+                  child: child,
+                );
+          return SafeArea(top: false, child: content);
+        },
+      ),
     );
   }
 }
