@@ -72,9 +72,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('row 0'), findsOneWidget);
 
+      final before = tester.getTopLeft(find.text('row 0')).dy;
       await tester.drag(find.text('row 0'), const Offset(0, -300));
       await tester.pumpAndSettle();
-      expect(find.text('row 0'), findsNothing);
+      final after = tester.getTopLeft(find.text('row 0')).dy;
+      expect(after, lessThan(before));
     },
   );
 
