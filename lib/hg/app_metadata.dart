@@ -1,7 +1,7 @@
 abstract final class HgAppMetadata {
   static const String version = '1.4.31';
-  static const String buildNumber = '36';
-  static const String versionLabel = 'v1.4.31 (36)';
+  static const String buildNumber = '37';
+  static const String versionLabel = 'v1.4.31 (37)';
   static const String releaseTitle = '缓存与首页封面修复版';
   static const List<String> releaseNotes = [
     '首页轮播与精选推荐改用黄果当前图片 CDN，并加入多图床自动回退，封面可正常解密显示。',
@@ -13,7 +13,7 @@ abstract final class HgAppMetadata {
   static const List<HgReleaseRecord> releaseHistory = [
     HgReleaseRecord(
       version: 'v1.4.31',
-      buildNumber: '36',
+      buildNumber: '37',
       date: '2026-11-22',
       title: '缓存与首页封面修复版',
       features: [
