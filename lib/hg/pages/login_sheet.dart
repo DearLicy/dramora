@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../api/hg_api.dart';
 import '../auth/app_controllers.dart';
 import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
@@ -11,6 +12,30 @@ Future<bool> ensureLoggedIn(BuildContext context) async {
   if (auth.isLoggedIn) return true;
   final result = await showLoginSheet(context);
   return result ?? false;
+}
+
+/// Runs an authenticated action and recovers once from a stale server session.
+///
+/// A request rejected with 401/403 has not applied its side effect, so after a
+/// successful re-login it is safe to retry the same action exactly once.
+Future<T?> runAuthenticated<T>(
+  BuildContext context,
+  Future<T> Function() action,
+) async {
+  final auth = context.read<AuthController>();
+  if (!auth.isLoggedIn) {
+    final result = await showLoginSheet(context);
+    if (result != true || !context.mounted) return null;
+  }
+  try {
+    return await action();
+  } on HgLoginRequiredException {
+    await auth.expireSession();
+    if (!context.mounted) rethrow;
+    final result = await showLoginSheet(context);
+    if (result != true || !context.mounted) return null;
+    return action();
+  }
 }
 
 Future<bool?> showLoginSheet(BuildContext context) {
@@ -138,6 +163,7 @@ class _LoginSheetState extends State<LoginSheet> {
                 const _FieldLabel('账号'),
                 const SizedBox(height: 7),
                 TextFormField(
+                  key: const ValueKey('hg-login-username'),
                   controller: _username,
                   textInputAction: TextInputAction.next,
                   autofillHints: const [AutofillHints.username],
@@ -161,6 +187,7 @@ class _LoginSheetState extends State<LoginSheet> {
                 const _FieldLabel('密码'),
                 const SizedBox(height: 7),
                 TextFormField(
+                  key: const ValueKey('hg-login-password'),
                   controller: _password,
                   obscureText: _obscure,
                   textInputAction: _register
@@ -257,6 +284,7 @@ class _LoginSheetState extends State<LoginSheet> {
                 SizedBox(
                   height: 48,
                   child: FilledButton(
+                    key: const ValueKey('hg-login-submit'),
                     onPressed: _loading ? null : _submit,
                     style: FilledButton.styleFrom(
                       backgroundColor:

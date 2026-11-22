@@ -1439,24 +1439,27 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
   }
 
   Future<void> _toggleLike() async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.lightImpact();
-    final auth = context.read<AuthController>();
     try {
-      await auth.toggleLike(widget.detail.id, widget.episode.number);
+      await runAuthenticated(context, () async {
+        HapticFeedback.lightImpact();
+        await context.read<AuthController>().toggleLike(
+          widget.detail.id,
+          widget.episode.number,
+        );
+        return true;
+      });
     } catch (error) {
       if (mounted) showHgSnack(context, cleanError(error));
     }
   }
 
   Future<void> _toggleFavorite() async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.mediumImpact();
-    final auth = context.read<AuthController>();
     try {
-      await auth.toggleFavorite(widget.detail.id);
+      await runAuthenticated(context, () async {
+        HapticFeedback.mediumImpact();
+        await context.read<AuthController>().toggleFavorite(widget.detail.id);
+        return true;
+      });
     } catch (error) {
       if (mounted) showHgSnack(context, cleanError(error));
     }

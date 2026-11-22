@@ -9,10 +9,12 @@ import '../api/hg_api.dart';
 import '../api/hg_source_pool.dart';
 import '../models/hg_models.dart';
 
-class AuthController extends ChangeNotifier {
+class AuthController extends ChangeNotifier with WidgetsBindingObserver {
   AuthController(this._api, this._prefs) {
     _token = _prefs.getString(_tokenKey);
     _api.token = _token;
+    _api.onAuthenticationExpired = _handleAuthenticationExpired;
+    WidgetsBinding.instance.addObserver(this);
     final cachedUser = _prefs.getString(_userKey);
     if (cachedUser != null && cachedUser.isNotEmpty) {
       try {
@@ -43,17 +45,18 @@ class AuthController extends ChangeNotifier {
   HgUser? get user => _user;
   bool get isRestoring => _restoring;
   bool _restoring = false;
+  Future<void>? _sessionExpiration;
 
   Map<String, int> get counts => _user?.counts ?? const {};
 
   Future<void> restore() async {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn || _restoring) return;
     _restoring = true;
     notifyListeners();
     try {
       _applyUser(await _api.me());
     } on HgLoginRequiredException {
-      await _clearSession();
+      await expireSession();
     } catch (_) {
       // 离线启动时保留已缓存账号，不把用户强制退出。
     } finally {
@@ -82,8 +85,13 @@ class AuthController extends ChangeNotifier {
 
   Future<void> refreshMe() async {
     if (!isLoggedIn) return;
-    _applyUser(await _api.me());
-    notifyListeners();
+    try {
+      _applyUser(await _api.me());
+      notifyListeners();
+    } on HgLoginRequiredException {
+      await expireSession();
+      rethrow;
+    }
   }
 
   Future<void> updateProfile({
@@ -92,11 +100,17 @@ class AuthController extends ChangeNotifier {
     required String avatarColor,
   }) async {
     _ensureLoggedIn();
-    final updated = await _api.updateProfile(
-      nickname: nickname.trim(),
-      sign: sign.trim(),
-      avatarColor: avatarColor,
-    );
+    late final HgUser updated;
+    try {
+      updated = await _api.updateProfile(
+        nickname: nickname.trim(),
+        sign: sign.trim(),
+        avatarColor: avatarColor,
+      );
+    } on HgLoginRequiredException {
+      await expireSession();
+      rethrow;
+    }
     final favorites = {..._favoriteIds};
     final liked = {..._likedEpisodes};
     _user = HgUser(
@@ -117,7 +131,7 @@ class AuthController extends ChangeNotifier {
 
   Future<void> logout() async {
     await _api.logout();
-    await _clearSession();
+    await expireSession();
   }
 
   bool isFavorite(int videoId) => _favoriteIds.contains(videoId);
@@ -139,6 +153,15 @@ class AuthController extends ChangeNotifier {
     try {
       await _api.collect(videoId, next);
       await _persistUser();
+    } on HgLoginRequiredException {
+      if (wasFavorite) {
+        _favoriteIds.add(videoId);
+      } else {
+        _favoriteIds.remove(videoId);
+      }
+      notifyListeners();
+      await expireSession();
+      rethrow;
     } catch (_) {
       if (wasFavorite) {
         _favoriteIds.add(videoId);
@@ -164,6 +187,15 @@ class AuthController extends ChangeNotifier {
     try {
       await _api.like(videoId, episode, next);
       await _persistUser();
+    } on HgLoginRequiredException {
+      if (wasLiked) {
+        _likedEpisodes.add(key);
+      } else {
+        _likedEpisodes.remove(key);
+      }
+      notifyListeners();
+      await expireSession();
+      rethrow;
     } catch (_) {
       if (wasLiked) {
         _likedEpisodes.add(key);
@@ -182,10 +214,13 @@ class AuthController extends ChangeNotifier {
   }
 
   Future<void> _setSession(String token, HgUser user) async {
+    final pendingExpiration = _sessionExpiration;
+    if (pendingExpiration != null) await pendingExpiration;
     _token = token;
     _api.token = token;
     await _prefs.setString(_tokenKey, token);
     _applyUser(user);
+    await _prefs.setString(_userKey, jsonEncode(user.toJson()));
     notifyListeners();
   }
 
@@ -223,6 +258,39 @@ class AuthController extends ChangeNotifier {
     await _prefs.remove(_tokenKey);
     await _prefs.remove(_userKey);
     notifyListeners();
+  }
+
+  void _handleAuthenticationExpired() {
+    unawaited(expireSession());
+  }
+
+  /// Clears a rejected session once and lets callers await the same cleanup.
+  Future<void> expireSession() {
+    final active = _sessionExpiration;
+    if (active != null) return active;
+    if (_token == null && _user == null) return Future<void>.value();
+    late final Future<void> expiration;
+    expiration = _clearSession().whenComplete(() {
+      if (identical(_sessionExpiration, expiration)) {
+        _sessionExpiration = null;
+      }
+    });
+    _sessionExpiration = expiration;
+    return expiration;
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && isLoggedIn) {
+      unawaited(restore());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _api.onAuthenticationExpired = null;
+    super.dispose();
   }
 }
 

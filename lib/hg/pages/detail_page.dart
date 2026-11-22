@@ -249,10 +249,12 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
   }
 
   Future<void> _toggleFavorite() async {
-    if (!await ensureLoggedIn(context) || !mounted) return;
-    HapticFeedback.mediumImpact();
     try {
-      await context.read<AuthController>().toggleFavorite(widget.videoId);
+      await runAuthenticated(context, () async {
+        HapticFeedback.mediumImpact();
+        await context.read<AuthController>().toggleFavorite(widget.videoId);
+        return true;
+      });
     } catch (error) {
       if (mounted) showHgSnack(context, cleanError(error));
     }

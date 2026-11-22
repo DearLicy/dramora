@@ -212,6 +212,9 @@ class HgApi {
   HgSourceRouter? _sourceRouter;
   String _fallbackBaseUrl;
   String? token;
+
+  /// Called after an authenticated request is rejected by the active source.
+  void Function()? onAuthenticationExpired;
   final Map<String, _CacheEntry<Map<String, dynamic>>> _rawCache = {};
   final Map<String, Future<Map<String, dynamic>>> _rawRefreshing = {};
 
@@ -1428,6 +1431,9 @@ class HgApi {
   dynamic _decodeResponse(Response<dynamic> response) {
     final status = response.statusCode ?? 0;
     if (status == 401 || status == 403) {
+      if (token != null && token!.isNotEmpty) {
+        onAuthenticationExpired?.call();
+      }
       throw const HgLoginRequiredException('登录状态已失效，请重新登录');
     }
     if (status < 200 || status >= 300) {

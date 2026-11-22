@@ -136,17 +136,19 @@ class _CommentsSheetState extends State<CommentsSheet> {
   Future<void> _send() async {
     final text = _input.text.trim();
     if (text.isEmpty || _sending) return;
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.selectionClick();
-    setState(() => _sending = true);
     try {
-      await context.read<HgApi>().sendComment(
-        widget.videoId,
-        widget.episode,
-        text,
-      );
-      if (!mounted) return;
+      final sent = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        HapticFeedback.selectionClick();
+        setState(() => _sending = true);
+        await context.read<HgApi>().sendComment(
+          widget.videoId,
+          widget.episode,
+          text,
+        );
+        return true;
+      });
+      if (sent != true || !mounted) return;
       _input.clear();
       _focus.unfocus();
       await _load(reset: true);
@@ -158,22 +160,25 @@ class _CommentsSheetState extends State<CommentsSheet> {
   }
 
   Future<void> _toggleLike(HgComment comment) async {
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.selectionClick();
     final nextLiked = !comment.isLiked;
-    _replaceComment(
-      comment.copyWith(
-        isLiked: nextLiked,
-        likeCount: math.max(0, comment.likeCount + (nextLiked ? 1 : -1)),
-      ),
-    );
     try {
-      await context.read<HgApi>().likeComment(
-        widget.videoId,
-        comment.id,
-        nextLiked,
-      );
+      final updated = await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        HapticFeedback.selectionClick();
+        _replaceComment(
+          comment.copyWith(
+            isLiked: nextLiked,
+            likeCount: math.max(0, comment.likeCount + (nextLiked ? 1 : -1)),
+          ),
+        );
+        await context.read<HgApi>().likeComment(
+          widget.videoId,
+          comment.id,
+          nextLiked,
+        );
+        return true;
+      });
+      if (updated != true && mounted) _replaceComment(comment);
     } catch (error) {
       if (!mounted) return;
       _replaceComment(comment);

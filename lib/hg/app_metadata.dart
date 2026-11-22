@@ -1,16 +1,38 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.29';
-  static const String buildNumber = '34';
-  static const String versionLabel = 'v1.4.29 (34)';
-  static const String releaseTitle = '详情与评论手感优化版';
+  static const String version = '1.4.30';
+  static const String buildNumber = '35';
+  static const String versionLabel = 'v1.4.30 (35)';
+  static const String releaseTitle = '我的页面与内容库优化版';
   static const List<String> releaseNotes = [
-    '详情页底部操作区改为悬浮圆角操作岛，追剧与继续观看入口更清晰。',
-    '评论输入框改为胶囊样式，缩短占位文字并使用圆形品牌色发送按钮。',
-    '评论点赞、回复和发送统一轻触反馈，补充触感反馈并扩大回复点击区域。',
-    '详情页与评论区在 320 宽小屏下保持完整布局，不出现挤压或溢出。',
+    '修复登录态失效后仍显示已登录、追剧却提示未登录的问题；重新登录后自动继续刚才的操作。',
+    '游客页移除重复登录按钮，改为三项同步权益说明，登录入口只保留一处。',
+    '头像增加编辑提示，消息、设置、关注数据和内容卡统一为轻触反馈。',
+    '追剧、历史与喜欢内容库改为自适应列数，窄屏两列、常规屏三列。',
+    '内容库进度轨道跟随深浅色主题，空状态文案按栏目分别显示。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.30',
+      buildNumber: '35',
+      date: '2026-11-22',
+      title: '我的页面与内容库优化版',
+      features: [
+        '游客页新增多设备续播、追剧收藏同步和点赞消息同步三项权益说明。',
+        '登录态失效时自动清理旧会话，重新登录后继续刚才的追剧、点赞、收藏或评论操作。',
+      ],
+      improvements: [
+        '应用启动和从后台恢复时自动校验黄果登录态，失效账号不再进入假登录状态。',
+        '游客页只保留头部一个登录入口，避免同屏重复按钮。',
+        '头像增加编辑提示，消息、设置、关注数据与内容卡统一轻触反馈。',
+        '追剧、历史与喜欢内容库改为自适应列数，窄屏两列、常规屏三列。',
+        '内容库封面圆角与进度轨道同步主题，深色模式不再出现浅色底条。',
+      ],
+      fixes: [
+        '修复登录态失效后追剧仍提示未登录、旧 token 无法自动清理的问题。',
+        '修复追剧、历史与喜欢空状态共用同一句说明、信息指向不准确的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.29',
       buildNumber: '34',

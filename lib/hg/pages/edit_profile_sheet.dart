@@ -8,6 +8,7 @@ import '../theme/hg_theme.dart';
 import '../utils/hg_format.dart';
 import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/secure_cover.dart';
+import 'login_sheet.dart';
 
 const List<String> kHgAvatarPalette = [
   '#4FB37A',
@@ -84,12 +85,15 @@ class _EditProfileSheetState extends State<_EditProfileSheet> {
       _error = null;
     });
     try {
-      await context.read<AuthController>().updateProfile(
-        nickname: _nickname.text,
-        sign: _sign.text,
-        avatarColor: _avatarColor,
-      );
-      if (mounted) Navigator.of(context).pop(true);
+      final saved = await runAuthenticated(context, () async {
+        await context.read<AuthController>().updateProfile(
+          nickname: _nickname.text,
+          sign: _sign.text,
+          avatarColor: _avatarColor,
+        );
+        return true;
+      });
+      if (saved == true && mounted) Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) setState(() => _error = cleanError(error));
     } finally {

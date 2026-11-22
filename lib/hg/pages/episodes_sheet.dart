@@ -85,13 +85,15 @@ class _EpisodesSheetState extends State<_EpisodesSheet> {
 
   Future<void> _toggleFavorite() async {
     if (_saving) return;
-    final loggedIn = await ensureLoggedIn(context);
-    if (!mounted || !loggedIn) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _saving = true);
-    final auth = context.read<AuthController>();
+    if (!mounted) return;
     try {
-      await auth.toggleFavorite(widget.detail.id);
+      await runAuthenticated(context, () async {
+        if (!mounted) return false;
+        HapticFeedback.mediumImpact();
+        setState(() => _saving = true);
+        await context.read<AuthController>().toggleFavorite(widget.detail.id);
+        return true;
+      });
     } catch (error) {
       if (mounted) showHgSnack(context, cleanError(error));
     } finally {
