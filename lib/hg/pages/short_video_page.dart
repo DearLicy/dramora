@@ -22,6 +22,7 @@ import '../utils/hg_local_history.dart';
 import '../widgets/hg_components.dart';
 import '../utils/hg_player_display.dart';
 import '../widgets/hg_share_sheet.dart';
+import '../widgets/hg_adaptive_sheet.dart';
 import '../widgets/hg_video_controller.dart';
 import '../widgets/hg_player_seek_bar.dart';
 import '../widgets/hg_playback_feedback.dart';
@@ -68,7 +69,8 @@ class _ShortVideoPageState extends State<ShortVideoPage>
   bool _speedLocked = false;
   bool _applicationActive = true;
   bool _activeEpisodePlaying = false;
-  double _playbackSpeed = 1;
+  final ValueNotifier<double> _speed = ValueNotifier<double>(1);
+  double get _playbackSpeed => _speed.value;
   bool get _previewOnly => kIsWeb && kHgWebPreviewOnly;
   String? _error;
 
@@ -101,6 +103,7 @@ class _ShortVideoPageState extends State<ShortVideoPage>
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_saveCurrentProgress());
     _pageController.dispose();
+    _speed.dispose();
     unawaited(HgLiveActivityService.end());
     unawaited(HgNowPlayingService.clear());
     unawaited(HgWakeLockService.release());
@@ -397,10 +400,22 @@ class _ShortVideoPageState extends State<ShortVideoPage>
     if (!_chromeVisible) setState(() => _chromeVisible = true);
   }
 
-  void _cycleSpeed() {
-    const speeds = [1.0, 1.25, 1.5, 2.0];
-    final index = speeds.indexOf(_playbackSpeed);
-    setState(() => _playbackSpeed = speeds[(index + 1) % speeds.length]);
+  Future<void> _openSpeedSheet() async {
+    final selected = await showHgAdaptiveSheetBuilder<double>(
+      context,
+      initialSize: 0.46,
+      minSize: 0.3,
+      maxSize: 0.86,
+      barrierColor: Colors.black.withValues(alpha: 0.36),
+      builder: (_) => _PlaybackSpeedSheet(
+        current: _speedLocked ? 2 : _playbackSpeed,
+        locked: _speedLocked,
+      ),
+    );
+    if (!mounted || selected == null) return;
+    HapticFeedback.selectionClick();
+    _speed.value = selected;
+    setState(() => _speedLocked = false);
   }
 
   Future<void> _openEpisodesSheet() async {
@@ -503,8 +518,8 @@ class _ShortVideoPageState extends State<ShortVideoPage>
                         prepare: (index - _currentPage).abs() <= 4,
                         chromeVisible: _chromeVisible,
                         speedLocked: _speedLocked,
-                        playbackSpeed: _playbackSpeed,
-                        onCycleSpeed: _cycleSpeed,
+                        playbackSpeedListenable: _speed,
+                        onCycleSpeed: () => unawaited(_openSpeedSheet()),
                         onShowChrome: _showChrome,
                         onHideChrome: _cleanScreen,
                         onOpenEpisodes: _openEpisodesSheet,
@@ -557,9 +572,13 @@ class _ShortVideoPageState extends State<ShortVideoPage>
                                   ),
                                 ),
                                 const SizedBox(width: 8),
-                                GestureDetector(
-                                  onTap: _cycleSpeed,
-                                  behavior: HitTestBehavior.opaque,
+                                HgPressable(
+                                  key: const ValueKey('hg-speed-button'),
+                                  onTap: () => unawaited(_openSpeedSheet()),
+                                  haptic: true,
+                                  semanticLabel:
+                                      '播放速度 ${_speedLabel(_speedLocked ? 2 : _playbackSpeed)}',
+                                  pressedOpacity: 0.55,
                                   child: Padding(
                                     padding: const EdgeInsets.symmetric(
                                       horizontal: 8,
@@ -673,7 +692,7 @@ class _EpisodePlayer extends StatefulWidget {
     required this.prepare,
     required this.chromeVisible,
     required this.speedLocked,
-    required this.playbackSpeed,
+    required this.playbackSpeedListenable,
     required this.onCycleSpeed,
     required this.onShowChrome,
     required this.onHideChrome,
@@ -692,7 +711,7 @@ class _EpisodePlayer extends StatefulWidget {
   final bool prepare;
   final bool chromeVisible;
   final bool speedLocked;
-  final double playbackSpeed;
+  final ValueListenable<double> playbackSpeedListenable;
   final VoidCallback onCycleSpeed;
   final VoidCallback onShowChrome;
   final VoidCallback onHideChrome;
@@ -742,6 +761,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
   @override
   void initState() {
     super.initState();
+    widget.playbackSpeedListenable.addListener(_handleSpeedChanged);
     _loading = widget.prepare;
     if (widget.active) unawaited(_initializeNowPlaying());
     if (widget.prepare) unawaited(_initializeWhenReady());
@@ -754,13 +774,8 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
         (!oldWidget.active && widget.active)) {
       unawaited(_initializeWhenReady());
     }
-    if (oldWidget.speedLocked != widget.speedLocked ||
-        oldWidget.playbackSpeed != widget.playbackSpeed) {
-      unawaited(
-        _controller?.setPlaybackSpeed(
-          widget.speedLocked ? 2 : widget.playbackSpeed,
-        ),
-      );
+    if (oldWidget.speedLocked != widget.speedLocked) {
+      _handleSpeedChanged();
     }
     if (oldWidget.active != widget.active) {
       if (oldWidget.active && !widget.active) {
@@ -781,7 +796,6 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
   void _scheduleChromeHide() {
     _chromeTimer?.cancel();
     if (!widget.active ||
-        !widget.landscape ||
         !widget.chromeVisible ||
         _controller?.isPlaying != true ||
         _scrubbing ||
@@ -954,6 +968,13 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
     }
   }
 
+  void _handleSpeedChanged() {
+    final speed = widget.speedLocked
+        ? 2.0
+        : widget.playbackSpeedListenable.value;
+    unawaited(_controller?.setPlaybackSpeed(speed));
+  }
+
   void _handleControllerChanged() {
     final controller = _controller;
     if (controller != null && controller.hasError) {
@@ -1043,7 +1064,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
           isPlaying: controller.isPlaying,
           speed: widget.speedLocked || _speedBoosting
               ? 2
-              : widget.playbackSpeed,
+              : widget.playbackSpeedListenable.value,
           deepLink: 'guomu://video/${widget.detail.id}',
         ),
       );
@@ -1144,7 +1165,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
             await controller.seekTo(resume);
           }
           await controller.setPlaybackSpeed(
-            widget.speedLocked ? 2 : widget.playbackSpeed,
+            widget.speedLocked ? 2 : widget.playbackSpeedListenable.value,
           );
           if (!mounted) return;
           if (_showVideo) {
@@ -1199,6 +1220,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
 
   @override
   void dispose() {
+    widget.playbackSpeedListenable.removeListener(_handleSpeedChanged);
     _chromeTimer?.cancel();
     _doubleTapFeedbackTimer?.cancel();
     _edgeTapTimer?.cancel();
@@ -1401,14 +1423,16 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
       HapticFeedback.mediumImpact();
       setState(() => _speedLockInGesture = false);
       widget.onSpeedLockChanged(false);
-      unawaited(_controller?.setPlaybackSpeed(widget.playbackSpeed));
+      unawaited(
+        _controller?.setPlaybackSpeed(widget.playbackSpeedListenable.value),
+      );
     }
   }
 
   Future<void> _endBoost() async {
     if (!_speedBoosting) return;
     if (!(_speedLockInGesture ?? widget.speedLocked)) {
-      await _controller?.setPlaybackSpeed(widget.playbackSpeed);
+      await _controller?.setPlaybackSpeed(widget.playbackSpeedListenable.value);
     }
     if (mounted) setState(() => _speedBoosting = false);
     if (mounted) _scheduleChromeHide();
@@ -1634,15 +1658,21 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
                         onTap: _share,
                       ),
                       const Spacer(),
-                      GestureDetector(
+                      HgPressable(
                         onTap: widget.onCycleSpeed,
+                        haptic: true,
+                        semanticLabel:
+                            '播放速度 ${_speedText(widget.speedLocked ? 2 : widget.playbackSpeedListenable.value)}',
+                        pressedOpacity: 0.55,
                         child: SizedBox(
                           height: 48,
                           width: 48,
                           child: Center(
                             child: Text(
                               _speedText(
-                                widget.speedLocked ? 2 : widget.playbackSpeed,
+                                widget.speedLocked
+                                    ? 2
+                                    : widget.playbackSpeedListenable.value,
                               ),
                               style: const TextStyle(
                                 color: Colors.white,
@@ -1860,7 +1890,7 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
                                 ],
                                 _WatchAllBar(
                                   label:
-                                      '选集 · 全 ${widget.detail.totalEpisodes > 0 ? widget.detail.totalEpisodes : (widget.detail.episodeCount > 0 ? widget.detail.episodeCount : widget.detail.episodes.length)} 集 · 当前第 ${widget.episode.number} 集',
+                                      '全 ${widget.detail.totalEpisodes > 0 ? widget.detail.totalEpisodes : (widget.detail.episodeCount > 0 ? widget.detail.episodeCount : widget.detail.episodes.length)} 集 · 当前第 ${widget.episode.number} 集',
                                   onTap: _openEpisodes,
                                 ),
                               ],
@@ -1874,6 +1904,30 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
               ),
             if (isLandscape)
               _buildLandscapeChrome(context, liked: liked, favorite: favorite),
+            if (_controller != null && widget.active && !widget.chromeVisible)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: IgnorePointer(
+                  child: SafeArea(
+                    top: false,
+                    minimum: const EdgeInsets.only(bottom: 2),
+                    child: AnimatedBuilder(
+                      animation: _controller!,
+                      builder: (context, _) {
+                        final duration = _controller!.duration;
+                        final fraction = duration <= Duration.zero
+                            ? 0.0
+                            : (_controller!.position.inMilliseconds /
+                                      duration.inMilliseconds)
+                                  .clamp(0.0, 1.0);
+                        return _HiddenPlayerProgress(fraction: fraction);
+                      },
+                    ),
+                  ),
+                ),
+              ),
             if (_horizontalSeeking && _controller != null)
               Positioned.fill(
                 child: IgnorePointer(
@@ -1945,6 +1999,187 @@ class _EpisodePlayerState extends State<_EpisodePlayer> {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PlaybackSpeedSheet extends StatelessWidget {
+  const _PlaybackSpeedSheet({required this.current, required this.locked});
+
+  final double current;
+  final bool locked;
+
+  static const _speeds = [0.75, 1.0, 1.25, 1.5, 2.0, 3.0];
+
+  String _label(double value) {
+    final text = value == value.roundToDouble()
+        ? value.toStringAsFixed(1)
+        : value.toStringAsFixed(2);
+    return '${text}x';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                '播放速度',
+                style: TextStyle(
+                  color: context.hgOnSurface,
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const Spacer(),
+              if (locked)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: HgColors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const Text(
+                    '长按锁定 2x',
+                    style: TextStyle(
+                      color: HgColors.orange,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            '选择适合你的节奏，长按画面两侧可临时 2 倍速。',
+            style: TextStyle(
+              color: context.hgMuted,
+              fontSize: 11.5,
+              height: 1.45,
+            ),
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              const spacing = 9.0;
+              final itemWidth = (constraints.maxWidth - spacing * 2) / 3;
+              return Wrap(
+                spacing: spacing,
+                runSpacing: spacing,
+                children: [
+                  for (final speed in _speeds)
+                    SizedBox(
+                      width: itemWidth,
+                      height: 46,
+                      child: Material(
+                        color: (current - speed).abs() < 0.001
+                            ? HgColors.orange
+                            : context.hgSurfaceMuted,
+                        borderRadius: BorderRadius.circular(14),
+                        clipBehavior: Clip.antiAlias,
+                        child: HgInkWell(
+                          key: ValueKey<String>('hg-speed-${_label(speed)}'),
+                          borderRadius: BorderRadius.circular(14),
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            Navigator.of(context).pop(speed);
+                          },
+                          child: Center(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  _label(speed),
+                                  style: TextStyle(
+                                    color: (current - speed).abs() < 0.001
+                                        ? Colors.white
+                                        : context.hgOnSurface,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    fontFeatures: const [
+                                      FontFeature.tabularFigures(),
+                                    ],
+                                  ),
+                                ),
+                                if ((current - speed).abs() < 0.001) ...[
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.check_rounded,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Icon(
+                Icons.swipe_up_alt_rounded,
+                color: context.hgMuted,
+                size: 15,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '长按画面两侧后上滑锁定 2x，下滑解除。',
+                  style: TextStyle(
+                    color: context.hgMuted,
+                    fontSize: 10.5,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HiddenPlayerProgress extends StatelessWidget {
+  const _HiddenPlayerProgress({required this.fraction});
+
+  final double fraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      key: const ValueKey('hg-hidden-progress'),
+      height: 2.5,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(color: Colors.white.withValues(alpha: 0.14)),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: fraction.clamp(0.0, 1.0),
+              heightFactor: 1,
+              child: const ColoredBox(color: HgColors.orange),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2166,36 +2401,62 @@ class _WatchAllBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black.withValues(alpha: 0.48),
-      borderRadius: BorderRadius.circular(10),
-      clipBehavior: Clip.antiAlias,
-      child: HgInkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 44,
-          child: Row(
-            children: [
-              const SizedBox(width: 14),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 336),
+        child: HgPressable(
+          onTap: onTap,
+          haptic: true,
+          semanticLabel: '打开选集，$label',
+          pressedOpacity: 0.72,
+          child: Container(
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.44),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(
+                  Icons.playlist_play_rounded,
+                  color: HgColors.orange,
+                  size: 19,
+                ),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.1,
+                    ),
                   ),
                 ),
-              ),
-              const Icon(
-                Icons.keyboard_arrow_up_rounded,
-                color: Colors.white70,
-                size: 21,
-              ),
-              const SizedBox(width: 11),
-            ],
+                const SizedBox(width: 9),
+                const Text(
+                  '选集',
+                  style: TextStyle(
+                    color: HgColors.orange,
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(width: 2),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: Colors.white.withValues(alpha: 0.72),
+                  size: 19,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -2221,14 +2482,17 @@ class _LandscapeAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      container: true,
       button: true,
       label: semanticsLabel,
       value: label == semanticsLabel ? null : label,
       onTap: onTap,
       excludeSemantics: true,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
+      child: HgPressable(
         onTap: onTap,
+        haptic: false,
+        button: false,
+        pressedOpacity: 0.58,
         child: Padding(
           padding: const EdgeInsets.only(right: 18, top: 12, bottom: 12),
           child: Row(
@@ -2306,16 +2570,19 @@ class _RailAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
+      container: true,
       button: true,
       label: semanticsLabel,
       value: label == semanticsLabel ? null : label,
       onTap: onTap,
       excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onTap,
+      child: HgPressable(
+        onTap: onTap,
+        haptic: false,
+        button: false,
+        pressedOpacity: 0.55,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16),
           child: Column(
             children: [
               SizedBox(
@@ -2473,21 +2740,19 @@ class _VideoCircleButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: SizedBox(
-          width: 48,
-          height: 48,
-          child: Icon(
-            icon,
-            color: Colors.white,
-            size: 19,
-            shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
-          ),
+    return HgPressable(
+      onTap: onTap,
+      haptic: true,
+      semanticLabel: label,
+      pressedOpacity: 0.5,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Icon(
+          icon,
+          color: Colors.white,
+          size: 19,
+          shadows: const [Shadow(color: Colors.black54, blurRadius: 10)],
         ),
       ),
     );

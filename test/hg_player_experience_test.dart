@@ -21,6 +21,7 @@ class _VideoPlatform extends VideoPlayerPlatform {
   final playing = <int, bool>{};
   final positions = <int, Duration>{};
   final seeks = <Duration>[];
+  final speeds = <double>[];
   bool failSeek = false;
   Completer<void>? seekPending;
 
@@ -52,7 +53,10 @@ class _VideoPlatform extends VideoPlayerPlatform {
   @override
   Future<void> setVolume(int playerId, double volume) async {}
   @override
-  Future<void> setPlaybackSpeed(int playerId, double speed) async {}
+  Future<void> setPlaybackSpeed(int playerId, double speed) async {
+    speeds.add(speed);
+  }
+
   @override
   Future<void> play(int playerId) async => playing[playerId] = true;
   @override
@@ -224,6 +228,34 @@ void main() {
     expect(platform.seeks.last, const Duration(seconds: 10));
     expect(find.text('+10 秒'), findsOneWidget);
     await tester.pump(const Duration(seconds: 1));
+  });
+
+  testWidgets('speed sheet selects a playback speed', (tester) async {
+    await mount(tester);
+    await tester.tap(find.byKey(const ValueKey('hg-speed-button')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('播放速度'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('hg-speed-0.75x')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('0.75x'), findsOneWidget);
+    expect(platform.speeds, contains(0.75));
+  });
+
+  testWidgets('portrait controls auto-hide while playing and restore on tap', (
+    tester,
+  ) async {
+    await mount(tester);
+    await tester.pump(const Duration(seconds: 4));
+    expect(find.bySemanticsLabel('清屏观看').hitTestable(), findsNothing);
+    expect(find.byKey(const ValueKey('hg-hidden-progress')), findsOneWidget);
+    expect(platform.playing[1], isTrue);
+
+    await tapSurface(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.bySemanticsLabel('清屏观看').hitTestable(), findsOneWidget);
+    expect(platform.playing[1], isTrue);
   });
 
   testWidgets('landscape taps toggle controls; play button controls playback', (

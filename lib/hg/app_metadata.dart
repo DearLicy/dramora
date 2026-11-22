@@ -1,16 +1,29 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.26';
-  static const String buildNumber = '31';
-  static const String versionLabel = 'v1.4.26 (31)';
-  static const String releaseTitle = '播放常亮与双击快进体验版';
+  static const String version = '1.4.27';
+  static const String buildNumber = '32';
+  static const String versionLabel = 'v1.4.27 (32)';
+  static const String releaseTitle = '沉浸播放器手感优化版';
   static const List<String> releaseNotes = [
-    '播放视频时自动保持屏幕常亮，暂停、切后台或离开播放页后自动恢复系统息屏策略。',
-    '播放页支持双击画面左右两侧快退或快进 10 秒，并显示边缘反馈。',
-    '双击快进、水平拖动和进度条共用同一套播放状态恢复逻辑，切集后不会恢复旧视频。',
-    '修复播放中按系统超时自动熄屏的问题（Issue #7）。',
+    '播放速度改为紧凑的三列半屏选择器，六档速度一屏可选，不再拥挤或滚动。',
+    '竖屏播放时控件自动淡出，轻点画面立即恢复；清屏时保留底部细进度线。',
+    '点赞、追剧、评论、分享、全屏和清屏按钮统一为无底色按压反馈，减少网页式高亮感。',
+    '选集条改为轻量胶囊样式，持续显示全 X 集与当前集数，点击直接打开选集。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.27',
+      buildNumber: '32',
+      date: '2026-11-22',
+      title: '沉浸播放器手感优化版',
+      features: ['竖屏播放中控件自动淡出，轻点画面恢复控件但不打断播放。', '清屏状态保留底部细进度线，随时感知播放位置。'],
+      improvements: [
+        '播放速度改为三列半屏选择器，六档速度一屏展示。',
+        '点赞、追剧、评论、分享和播放器按钮加入统一的轻触反馈。',
+        '选集入口改为胶囊样式，突出全 X 集、当前第 X 集和选集操作。',
+      ],
+      fixes: ['修复播放速度面板选项过长导致底部档位需要滚动才能点击的问题。'],
+    ),
     HgReleaseRecord(
       version: 'v1.4.26',
       buildNumber: '31',

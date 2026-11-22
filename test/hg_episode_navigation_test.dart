@@ -231,7 +231,7 @@ void main() {
       await tester.pumpWidget(host(const ShortVideoPage(videoIds: [1])));
       await _frames(tester);
       expect(platform.episodes[platform.active], 1);
-      await tester.tap(find.textContaining('选集 · 全').first);
+      await tester.tap(find.textContaining('当前第 1 集').first);
       await _frames(tester);
       await tester.tap(find.text('31-60'));
       await _frames(tester, 3);
