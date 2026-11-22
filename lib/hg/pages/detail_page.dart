@@ -83,6 +83,7 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
   }
 
   Future<void> _play([int? episode]) async {
+    HapticFeedback.selectionClick();
     final ids = widget.feedIds.isEmpty ? [widget.videoId] : widget.feedIds;
     final safeIndex = ids.indexOf(widget.videoId);
     await Navigator.of(context).push(
@@ -270,26 +271,45 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
     return Scaffold(
       bottomNavigationBar: SafeArea(
         top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          key: const ValueKey('hg-detail-action-dock'),
+          padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            border: Border(
-              top: BorderSide(
-                color: theme.colorScheme.outlineVariant.withValues(alpha: 0.4),
-              ),
+            color: theme.colorScheme.surface.withValues(alpha: 0.98),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.28),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(
+                  alpha: theme.brightness == Brightness.dark ? 0.32 : 0.08,
+                ),
+                blurRadius: 26,
+                offset: const Offset(0, 10),
+              ),
+            ],
           ),
           child: Row(
             children: [
               OutlinedButton.icon(
+                key: const ValueKey('hg-detail-follow'),
                 onPressed: _toggleFavorite,
                 style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(56, 52),
+                  minimumSize: const Size(56, 50),
                   padding: const EdgeInsets.symmetric(horizontal: 15),
                   foregroundColor: favorite
                       ? HgColors.orange
                       : theme.colorScheme.onSurface,
+                  side: BorderSide(
+                    color: favorite
+                        ? HgColors.orange.withValues(alpha: 0.45)
+                        : theme.colorScheme.outlineVariant,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                   overlayColor: Colors.transparent,
                 ),
                 icon: Icon(
@@ -300,7 +320,16 @@ class _DramaDetailPageState extends State<DramaDetailPage> {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton.icon(
+                  key: const ValueKey('hg-detail-play'),
                   onPressed: _loading || detail == null ? null : _play,
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 50),
+                    backgroundColor: HgColors.orange,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
                   icon: const Icon(Icons.play_arrow_rounded, size: 22),
                   label: Text(
                     detail == null

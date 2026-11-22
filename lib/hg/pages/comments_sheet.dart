@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/hg_api.dart';
@@ -137,6 +138,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
     if (text.isEmpty || _sending) return;
     final loggedIn = await ensureLoggedIn(context);
     if (!mounted || !loggedIn) return;
+    HapticFeedback.selectionClick();
     setState(() => _sending = true);
     try {
       await context.read<HgApi>().sendComment(
@@ -158,6 +160,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
   Future<void> _toggleLike(HgComment comment) async {
     final loggedIn = await ensureLoggedIn(context);
     if (!mounted || !loggedIn) return;
+    HapticFeedback.selectionClick();
     final nextLiked = !comment.isLiked;
     _replaceComment(
       comment.copyWith(
@@ -188,6 +191,7 @@ class _CommentsSheetState extends State<CommentsSheet> {
   }
 
   Future<void> _toggleReplies(HgComment comment) async {
+    HapticFeedback.selectionClick();
     if (comment.replies.isNotEmpty) {
       _replaceComment(comment.copyWith(replies: const []));
       return;
@@ -346,9 +350,11 @@ class _CommentRow extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
+                  HgPressable(
+                    key: ValueKey('hg-comment-like-${comment.id}'),
                     onTap: onLike,
+                    semanticLabel: comment.isLiked ? '取消点赞' : '点赞',
+                    pressedOpacity: 0.55,
                     child: Padding(
                       padding: const EdgeInsets.only(left: 8, bottom: 6),
                       child: Column(
@@ -396,37 +402,45 @@ class _CommentRow extends StatelessWidget {
                     ),
                   ),
                   if (comment.replyCount > 0 && onToggleReplies != null)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
+                    HgPressable(
+                      key: ValueKey('hg-comment-replies-${comment.id}'),
                       onTap: onToggleReplies,
-                      child: Row(
-                        children: [
-                          if (loadingReplies)
-                            const SizedBox(
-                              width: 13,
-                              height: 13,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 1.8,
+                      semanticLabel: '回复 ${comment.replyCount} 条',
+                      pressedOpacity: 0.55,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 6,
+                        ),
+                        child: Row(
+                          children: [
+                            if (loadingReplies)
+                              const SizedBox(
+                                width: 13,
+                                height: 13,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.8,
+                                ),
+                              )
+                            else
+                              Text(
+                                '回复',
+                                style: TextStyle(
+                                  color: context.hgMuted,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                ),
                               ),
-                            )
-                          else
+                            const SizedBox(width: 3),
                             Text(
-                              '回复',
+                              '${comment.replyCount}',
                               style: TextStyle(
                                 color: context.hgMuted,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                          const SizedBox(width: 3),
-                          Text(
-                            '${comment.replyCount}',
-                            style: TextStyle(
-                              color: context.hgMuted,
-                              fontSize: 11,
-                            ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                 ],
@@ -500,79 +514,72 @@ class _CommentComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       top: false,
-      minimum: const EdgeInsets.fromLTRB(16, 7, 16, 11),
-      child: Row(
-        children: [
-          Expanded(
-            child: GestureDetector(
-              onTap: enabled ? null : onLogin,
-              child: Container(
-                height: 44,
-                decoration: BoxDecoration(
-                  color: context.hgSurfaceMuted,
-                  borderRadius: BorderRadius.circular(10),
-                ),
+      minimum: const EdgeInsets.fromLTRB(14, 7, 14, 11),
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.only(left: 16, right: 5),
+        decoration: BoxDecoration(
+          color: context.hgSurfaceMuted,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: context.hgLine.withValues(alpha: 0.32)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: enabled ? null : onLogin,
                 child: TextField(
                   controller: controller,
                   focusNode: focusNode,
                   readOnly: !enabled,
                   onSubmitted: (_) => onSend(),
                   textInputAction: TextInputAction.send,
-                  style: const TextStyle(fontSize: 13.5),
-                  decoration: const InputDecoration(
+                  textAlignVertical: TextAlignVertical.center,
+                  style: TextStyle(color: context.hgOnSurface, fontSize: 13.5),
+                  decoration: InputDecoration(
                     isDense: true,
                     border: InputBorder.none,
-                    hintText: '有趣评论千千万，不如你也来一条？',
-                    hintStyle: TextStyle(
-                      color: Color(0xFF9B9B9F),
-                      fontSize: 13,
-                    ),
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 13,
-                      vertical: 14,
-                    ),
+                    hintText: enabled ? '说点什么…' : '登录后参与评论',
+                    hintStyle: TextStyle(color: context.hgMuted, fontSize: 13),
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
                   ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          Material(
-            color: enabled
-                ? (Theme.of(context).brightness == Brightness.dark
-                      ? context.hgOnSurface
-                      : HgColors.ink)
-                : context.hgSurfaceMuted,
-            borderRadius: BorderRadius.circular(10),
-            child: HgInkWell(
-              onTap: enabled ? onSend : onLogin,
-              borderRadius: BorderRadius.circular(10),
-              child: SizedBox(
-                width: 46,
-                height: 44,
-                child: sending
-                    ? Padding(
-                        padding: const EdgeInsets.all(13),
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: context.hgSurface,
+            const SizedBox(width: 8),
+            Material(
+              color: enabled ? HgColors.orange : context.hgSurfaceHigh,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: HgPressable(
+                key: const ValueKey('hg-comment-send'),
+                onTap: enabled ? onSend : onLogin,
+                semanticLabel: enabled ? '发送评论' : '登录后评论',
+                pressedOpacity: 0.62,
+                child: SizedBox(
+                  width: 38,
+                  height: 38,
+                  child: sending
+                      ? const Padding(
+                          padding: EdgeInsets.all(11),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Icon(
+                          enabled
+                              ? Icons.arrow_upward_rounded
+                              : Icons.login_rounded,
+                          color: enabled ? Colors.white : context.hgMuted,
+                          size: 21,
                         ),
-                      )
-                    : Icon(
-                        enabled
-                            ? Icons.arrow_upward_rounded
-                            : Icons.login_rounded,
-                        color: enabled
-                            ? (Theme.of(context).brightness == Brightness.dark
-                                  ? context.hgSurface
-                                  : Colors.white)
-                            : context.hgMuted,
-                        size: 22,
-                      ),
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
