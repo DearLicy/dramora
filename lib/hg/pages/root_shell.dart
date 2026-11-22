@@ -196,7 +196,7 @@ class _RootShellState extends State<RootShell> with WidgetsBindingObserver {
   Widget _appShell() {
     return Scaffold(
       body: _body(),
-      bottomNavigationBar: _AppBottomBar(
+      bottomNavigationBar: HgAppBottomBar(
         index: _index,
         items: _items,
         onSelected: _select,
@@ -331,8 +331,9 @@ class _WebPreviewNotice extends StatelessWidget {
   }
 }
 
-class _AppBottomBar extends StatelessWidget {
-  const _AppBottomBar({
+class HgAppBottomBar extends StatelessWidget {
+  const HgAppBottomBar({
+    super.key,
     required this.index,
     required this.items,
     required this.onSelected,
@@ -345,66 +346,110 @@ class _AppBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final muted = theme.colorScheme.onSurface.withValues(alpha: 0.42);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.colorScheme.surface.withValues(alpha: dark ? 0.96 : 0.98),
         border: Border(
           top: BorderSide(
-            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.34),
+            color: theme.colorScheme.outlineVariant.withValues(alpha: 0.18),
           ),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: dark ? 0.28 : 0.05),
+            blurRadius: 24,
+            offset: const Offset(0, -6),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 58,
-          child: Row(
-            children: List.generate(items.length, (itemIndex) {
-              final selected = itemIndex == index;
-              final item = items[itemIndex];
-              final color = selected
-                  ? theme.colorScheme.onSurface
-                  : theme.colorScheme.onSurface.withValues(alpha: 0.42);
-              return Expanded(
-                child: Semantics(
-                  selected: selected,
-                  button: true,
-                  label: item.$3,
-                  child: HgInkWell(
-                    onTap: () => onSelected(itemIndex),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 160),
-                          switchInCurve: Curves.easeOut,
-                          transitionBuilder: (child, animation) =>
-                              FadeTransition(opacity: animation, child: child),
-                          child: Icon(
-                            selected ? item.$2 : item.$1,
-                            key: ValueKey<bool>(selected),
-                            size: 22,
-                            color: color,
-                          ),
+          height: 60,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final itemWidth = constraints.maxWidth / items.length;
+              return Stack(
+                children: [
+                  AnimatedPositioned(
+                    key: const ValueKey('hg-nav-active-indicator'),
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    left: itemWidth * index + (itemWidth - 42) / 2,
+                    top: 5,
+                    width: 42,
+                    height: 29,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: HgColors.orange.withValues(
+                          alpha: dark ? 0.16 : 0.1,
                         ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.$3,
-                          style: TextStyle(
-                            fontSize: 10,
-                            height: 1,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            color: color,
-                          ),
-                        ),
-                      ],
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
-                ),
+                  Positioned.fill(
+                    child: Row(
+                      children: List.generate(items.length, (itemIndex) {
+                        final selected = itemIndex == index;
+                        final item = items[itemIndex];
+                        return Expanded(
+                          child: Semantics(
+                            selected: selected,
+                            button: true,
+                            label: item.$3,
+                            child: HgPressable(
+                              key: ValueKey('hg-nav-item-$itemIndex'),
+                              onTap: () => onSelected(itemIndex),
+                              button: false,
+                              pressedOpacity: 0.72,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 180),
+                                    switchInCurve: Curves.easeOutCubic,
+                                    transitionBuilder: (child, animation) =>
+                                        FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        ),
+                                    child: Icon(
+                                      selected ? item.$2 : item.$1,
+                                      key: ValueKey<bool>(selected),
+                                      size: 22,
+                                      color: selected ? HgColors.orange : muted,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 3),
+                                  AnimatedDefaultTextStyle(
+                                    duration: const Duration(milliseconds: 180),
+                                    curve: Curves.easeOutCubic,
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      height: 1,
+                                      fontWeight: selected
+                                          ? FontWeight.w700
+                                          : FontWeight.w500,
+                                      color: selected
+                                          ? theme.colorScheme.onSurface
+                                          : muted,
+                                    ),
+                                    child: Text(item.$3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    ),
+                  ),
+                ],
               );
-            }),
+            },
           ),
         ),
       ),

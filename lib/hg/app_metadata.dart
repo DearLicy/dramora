@@ -1,16 +1,29 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.27';
-  static const String buildNumber = '32';
-  static const String versionLabel = 'v1.4.27 (32)';
-  static const String releaseTitle = '沉浸播放器手感优化版';
+  static const String version = '1.4.28';
+  static const String buildNumber = '33';
+  static const String versionLabel = 'v1.4.28 (33)';
+  static const String releaseTitle = '首页层级与底部导航优化版';
   static const List<String> releaseNotes = [
-    '播放速度改为紧凑的三列半屏选择器，六档速度一屏可选，不再拥挤或滚动。',
-    '竖屏播放时控件自动淡出，轻点画面立即恢复；清屏时保留底部细进度线。',
-    '点赞、追剧、评论、分享、全屏和清屏按钮统一为无底色按压反馈，减少网页式高亮感。',
-    '选集条改为轻量胶囊样式，持续显示全 X 集与当前集数，点击直接打开选集。',
+    '首页移除重复的“为你精选、新剧上线、正在热播”等辅助小标题，只保留清晰的内容主标题。',
+    '底部导航加入滑动的品牌色选中指示，图标随选中状态平滑切换。',
+    '底栏改为更轻的阴影层级与低对比分割线，减少网页式硬边框。',
+    '首页顶部移除空泛口号，搜索、消息与内容区块的层级更集中。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.28',
+      buildNumber: '33',
+      date: '2026-11-22',
+      title: '首页层级与底部导航优化版',
+      features: ['底部导航新增随选中项滑动的品牌色指示，并同步切换线性/填充图标。'],
+      improvements: [
+        '首页区块移除重复的辅助小标题，标题、更多入口和内容区层级更干净。',
+        '首页顶部移除空泛口号，让搜索框与消息入口成为首屏唯一操作焦点。',
+        '底栏减少硬边框，改为轻阴影和低对比分割线，按压时只做轻透明度反馈。',
+      ],
+      fixes: [],
+    ),
     HgReleaseRecord(
       version: 'v1.4.27',
       buildNumber: '32',

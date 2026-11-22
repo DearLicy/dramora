@@ -460,7 +460,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '精选推荐',
-                          eyebrow: '为你精选',
                           actionLabel: '更多推荐',
                           onMore: () =>
                               _openVideoMore(HgVideoMoreKind.recommend),
@@ -495,7 +494,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '最近上新',
-                          eyebrow: '新剧上线',
                           actionLabel: '全部上新',
                           onMore: () => _openVideoMore(HgVideoMoreKind.newest),
                         ),
@@ -532,7 +530,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '热播短剧',
-                          eyebrow: '正在热播',
                           actionLabel: '更多热播',
                           onMore: _openHotMore,
                         ),
@@ -559,7 +556,6 @@ class _HomePageState extends State<HomePage> {
                       SliverToBoxAdapter(
                         child: _SectionHeader(
                           title: '专题推荐',
-                          eyebrow: '主题合集',
                           actionLabel: '全部专题',
                           onMore: _openTopics,
                         ),
@@ -634,13 +630,6 @@ class _HomeHeader extends StatelessWidget {
                 ),
               ),
               const Spacer(),
-              Text(
-                '发现好内容',
-                style: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.38),
-                  fontSize: 11,
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -1478,50 +1467,26 @@ class _ShortcutGlyphPainter extends CustomPainter {
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({
-    required this.title,
-    required this.eyebrow,
-    this.actionLabel,
-    this.onMore,
-  });
+  const _SectionHeader({required this.title, this.actionLabel, this.onMore});
 
   final String title;
-  final String eyebrow;
   final String? actionLabel;
   final VoidCallback? onMore;
 
   @override
   Widget build(BuildContext context) {
-    final muted = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: 0.4);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 22, 12, 11),
+      padding: const EdgeInsets.fromLTRB(16, 24, 12, 10),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                eyebrow,
-                style: TextStyle(
-                  color: muted,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.1,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
-                ),
-              ),
-            ],
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
           const Spacer(),
           if (actionLabel != null)
