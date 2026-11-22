@@ -1,17 +1,35 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.30';
-  static const String buildNumber = '35';
-  static const String versionLabel = 'v1.4.30 (35)';
-  static const String releaseTitle = '我的页面与内容库优化版';
+  static const String version = '1.4.31';
+  static const String buildNumber = '36';
+  static const String versionLabel = 'v1.4.31 (36)';
+  static const String releaseTitle = '缓存与首页封面修复版';
   static const List<String> releaseNotes = [
-    '修复登录态失效后仍显示已登录、追剧却提示未登录的问题；重新登录后自动继续刚才的操作。',
-    '游客页移除重复登录按钮，改为三项同步权益说明，登录入口只保留一处。',
-    '头像增加编辑提示，消息、设置、关注数据和内容卡统一为轻触反馈。',
-    '追剧、历史与喜欢内容库改为自适应列数，窄屏两列、常规屏三列。',
-    '内容库进度轨道跟随深浅色主题，空状态文案按栏目分别显示。',
+    '首页轮播与精选推荐改用黄果当前图片 CDN，并加入多图床自动回退，封面可正常解密显示。',
+    'HLS 缓存改为 4 路并发流式下载，实时更新字节、速度、剩余时间和分片进度。',
+    'iOS 缓存优先选择体积更小的 HEVC，失败时自动回退主码流；实测单集约 154 MB 对 559 MB。',
+    '缓存任务支持排队、暂停、手动继续，并在 App 重启后自动恢复未完成下载。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.31',
+      buildNumber: '36',
+      date: '2026-11-22',
+      title: '缓存与首页封面修复版',
+      features: [
+        'HLS 缓存支持 4 路并发流式分片下载，实时显示本集字节、速度、剩余时间与分片进度。',
+        'iOS 缓存优先使用 HEVC 码流，失败时自动回退主码流；未完成缓存会在 App 重启后自动恢复。',
+      ],
+      improvements: [
+        '首页轮播与精选推荐改用黄果当前图片 CDN，并在多个可用图床之间自动回退。',
+        '下载排队状态与网络等待状态明确区分，已暂停任务提供继续下载按钮。',
+        '下载进度改为按真实已接收字节和分片完成数计算，不再固定停留在 45% 或显示 0 B。',
+      ],
+      fixes: [
+        '修复首页顶部轮播和精选推荐封面因旧图床证书失效而无法显示的问题。',
+        '修复缓存任务关闭 App 后仍显示下载中、但实际不再继续的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.30',
       buildNumber: '35',

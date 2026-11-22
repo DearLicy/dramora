@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 
 import '../api/hg_api.dart';
+import '../models/hg_models.dart';
 import '../theme/hg_theme.dart';
 import 'hg_cover_crypto.dart' as cover_crypto;
 
@@ -22,6 +23,13 @@ class HgCoverRepository {
   static final HgCoverRepository instance = HgCoverRepository._();
   static const int _cacheLimit = 160;
   static const int _maxConcurrent = 6;
+  static const List<String> _fallbackOrigins = [
+    kHgImageOrigin,
+    'https://new2.qnlycc.cn',
+    'https://new.qnlycc.cn',
+    'https://image.qnlycc.cn',
+  ];
+  static const Set<String> _legacyHosts = {'pic.drleao.cn', 'drleao.cn'};
 
   final Dio _dio = Dio(
     BaseOptions(
@@ -72,10 +80,12 @@ class HgCoverRepository {
     await _acquireSlot();
     try {
       Object? lastError;
+      final candidates = _candidateUrls(url);
       for (var attempt = 0; attempt < 3; attempt++) {
+        final candidate = candidates[attempt % candidates.length];
         try {
           final response = await _dio.get<List<int>>(
-            url,
+            candidate,
             options: Options(
               validateStatus: (status) =>
                   status != null && status >= 200 && status < 300,
@@ -101,6 +111,22 @@ class HgCoverRepository {
     } finally {
       _releaseSlot();
     }
+  }
+
+  List<String> _candidateUrls(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return [url];
+    final host = uri.host.toLowerCase();
+    final knownHosts = _fallbackOrigins
+        .map((origin) => Uri.parse(origin).host)
+        .toSet();
+    if (!knownHosts.contains(host) && !_legacyHosts.contains(host)) {
+      return [url];
+    }
+    return [
+      for (final origin in _fallbackOrigins)
+        Uri.parse(origin).replace(path: uri.path, query: uri.query).toString(),
+    ];
   }
 
   Future<void> _acquireSlot() async {

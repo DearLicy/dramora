@@ -18,6 +18,21 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('HG models', () {
+    test('resolves relative covers through the current Huangguo image CDN', () {
+      expect(
+        resolveHgMediaUrl('/upload_01/upload/cover.jpeg'),
+        'https://pic.qnlycc.cn/upload_01/upload/cover.jpeg',
+      );
+      expect(
+        HgVideoCard.fromJson({
+          'id': 10586,
+          'title': '蜜桃臀',
+          'cover': '/upload_01/upload/cover.jpeg',
+        }).cover,
+        'https://pic.qnlycc.cn/upload_01/upload/cover.jpeg',
+      );
+    });
+
     test('parses video cards and pagination', () {
       final page = HgPage.fromJson({
         'items': [
