@@ -29,8 +29,8 @@ Future<T?> runAuthenticated<T>(
   }
   try {
     return await action();
-  } on HgLoginRequiredException {
-    await auth.expireSession();
+  } on HgLoginRequiredException catch (error) {
+    if (!error.confirmed) rethrow;
     if (!context.mounted) rethrow;
     final result = await showLoginSheet(context);
     if (result != true || !context.mounted) return null;

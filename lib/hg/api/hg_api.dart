@@ -159,7 +159,12 @@ class HgApiException implements Exception {
 }
 
 class HgLoginRequiredException extends HgApiException {
-  const HgLoginRequiredException([super.message = '请先登录']);
+  const HgLoginRequiredException([
+    super.message = '请先登录',
+    this.confirmed = false,
+  ]);
+
+  final bool confirmed;
 }
 
 class HgSourceProbeResult {
@@ -215,6 +220,8 @@ class HgApi {
 
   /// Called after an authenticated request is rejected by the active source.
   void Function()? onAuthenticationExpired;
+  Future<bool>? _sessionVerification;
+  String? _lastVerifiedAuthenticatedSource;
   final Map<String, _CacheEntry<Map<String, dynamic>>> _rawCache = {};
   final Map<String, Future<Map<String, dynamic>>> _rawRefreshing = {};
 
@@ -410,7 +417,9 @@ class HgApi {
         body: {'username': username, 'password': password},
       ),
     );
-    return _sessionFromData(data);
+    final session = _sessionFromData(data);
+    _lastVerifiedAuthenticatedSource = baseUrl;
+    return session;
   }
 
   Future<({String token, HgUser user})> register(
@@ -427,7 +436,9 @@ class HgApi {
     final data = asMap(
       await _request('POST', '/api/account/registerByPassword', body: body),
     );
-    return _sessionFromData(data);
+    final session = _sessionFromData(data);
+    _lastVerifiedAuthenticatedSource = baseUrl;
+    return session;
   }
 
   Future<void> logout() async {
@@ -1354,6 +1365,9 @@ class HgApi {
           stopwatch.elapsed,
           promote: isReadOnly,
         );
+        if (token != null && token!.isNotEmpty && !_isAccountEntryPath(path)) {
+          _lastVerifiedAuthenticatedSource = source;
+        }
         if (_sourceRouter == null && source != _fallbackBaseUrl) {
           setBaseUrl(source);
         }
@@ -1362,6 +1376,19 @@ class HgApi {
         lastError = error;
         await _sourceRouter?.recordFailure(source);
         if (!isReadOnly || !_isRetryable(error)) break;
+      } on HgLoginRequiredException {
+        final tokenAtRequest = token;
+        if (tokenAtRequest == null ||
+            tokenAtRequest.isEmpty ||
+            _isAccountEntryPath(path)) {
+          rethrow;
+        }
+        final confirmed = await _confirmSessionInvalid(tokenAtRequest);
+        if (confirmed) onAuthenticationExpired?.call();
+        throw HgLoginRequiredException(
+          confirmed ? '登录状态已失效，请重新登录' : '当前线路登录校验异常，请稍后重试',
+          confirmed,
+        );
       } on HgApiException catch (error) {
         lastError = error;
         final retryable =
@@ -1430,11 +1457,11 @@ class HgApi {
 
   dynamic _decodeResponse(Response<dynamic> response) {
     final status = response.statusCode ?? 0;
-    if (status == 401 || status == 403) {
-      if (token != null && token!.isNotEmpty) {
-        onAuthenticationExpired?.call();
-      }
+    if (status == 401) {
       throw const HgLoginRequiredException('登录状态已失效，请重新登录');
+    }
+    if (status == 403) {
+      throw const HgApiException('当前账号没有权限执行此操作', statusCode: 403);
     }
     if (status < 200 || status >= 300) {
       throw HgApiException('请求失败（HTTP $status）', statusCode: status);
@@ -1459,6 +1486,91 @@ class HgApi {
     }
     final message = asText(envelope['msg'], fallback: '接口返回失败');
     throw HgApiException(message, statusCode: status);
+  }
+
+  bool _isAccountEntryPath(String path) {
+    return path.startsWith('/api/account/login') ||
+        path.startsWith('/api/account/register') ||
+        path.startsWith('/api/account/logout');
+  }
+
+  Future<bool> _confirmSessionInvalid(String expectedToken) {
+    final active = _sessionVerification;
+    if (active != null) return active;
+    late final Future<bool> verification;
+    verification = _verifySessionInvalid(expectedToken).whenComplete(() {
+      if (identical(_sessionVerification, verification)) {
+        _sessionVerification = null;
+      }
+    });
+    _sessionVerification = verification;
+    return verification;
+  }
+
+  Future<bool> _verifySessionInvalid(String expectedToken) async {
+    final sources = <String>[];
+    void addSource(String? source) {
+      if (source == null || source.isEmpty || sources.contains(source)) return;
+      sources.add(source);
+    }
+
+    addSource(_lastVerifiedAuthenticatedSource);
+    for (final source in _sourceRouter?.rankedSources ?? [baseUrl]) {
+      addSource(source);
+    }
+    final candidates = sources.take(4).toList(growable: false);
+    if (candidates.isEmpty || token != expectedToken) return false;
+
+    const envelope = <String, dynamic>{
+      'method': 'GET',
+      'path': '/api/account/me',
+      'body': '',
+      'content_type': '',
+    };
+    var rejected = 0;
+    String? rejectedSource;
+    for (final source in candidates) {
+      if (token != expectedToken) return false;
+      final stopwatch = Stopwatch()..start();
+      try {
+        await _requestOnSource(source, envelope, allowTransportRetry: false);
+        if (token != expectedToken) return false;
+        _lastVerifiedAuthenticatedSource = source;
+        await _sourceRouter?.recordSuccess(
+          source,
+          stopwatch.elapsed,
+          promote: true,
+        );
+        return false;
+      } on HgLoginRequiredException {
+        rejected++;
+        rejectedSource ??= source;
+      } on DioException {
+        // An unreachable source cannot prove that the token is invalid.
+      } on HgApiException {
+        // Server-side or proxy errors also remain inconclusive.
+      }
+    }
+
+    if (token != expectedToken || rejected == 0) return false;
+    if (rejected >= 2) return true;
+
+    // One rejecting source plus unreachable peers is ambiguous. A second
+    // consecutive rejection from the same source avoids logging users out on
+    // a single transient CDN edge response.
+    final retrySource = rejectedSource;
+    if (retrySource == null) return false;
+    await Future<void>.delayed(const Duration(milliseconds: 180));
+    if (token != expectedToken) return false;
+    try {
+      await _requestOnSource(retrySource, envelope, allowTransportRetry: false);
+      _lastVerifiedAuthenticatedSource = retrySource;
+      return false;
+    } on HgLoginRequiredException {
+      return token == expectedToken;
+    } catch (_) {
+      return false;
+    }
   }
 
   ({String token, HgUser user}) _sessionFromData(Map<String, dynamic> data) {

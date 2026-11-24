@@ -252,7 +252,10 @@ ThemeData buildHgTheme(Brightness brightness) {
     ),
     pageTransitionsTheme: const PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+        // Some Android 14 OEM builds freeze after a system edge-back gesture
+        // when Flutter's predictive-back snapshot path is enabled. Keep the
+        // stable route transition and use the legacy back dispatcher instead.
+        TargetPlatform.android: FadeForwardsPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.windows: FadeForwardsPageTransitionsBuilder(),

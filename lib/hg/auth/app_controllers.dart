@@ -56,7 +56,8 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
     try {
       _applyUser(await _api.me());
     } on HgLoginRequiredException {
-      await expireSession();
+      // HgApi clears the session only after confirming the rejection across
+      // sources. A single transient 401 must not force another login.
     } catch (_) {
       // 离线启动时保留已缓存账号，不把用户强制退出。
     } finally {
@@ -89,7 +90,6 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
       _applyUser(await _api.me());
       notifyListeners();
     } on HgLoginRequiredException {
-      await expireSession();
       rethrow;
     }
   }
@@ -108,7 +108,6 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
         avatarColor: avatarColor,
       );
     } on HgLoginRequiredException {
-      await expireSession();
       rethrow;
     }
     final favorites = {..._favoriteIds};
@@ -160,7 +159,6 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
         _favoriteIds.remove(videoId);
       }
       notifyListeners();
-      await expireSession();
       rethrow;
     } catch (_) {
       if (wasFavorite) {
@@ -194,7 +192,6 @@ class AuthController extends ChangeNotifier with WidgetsBindingObserver {
         _likedEpisodes.remove(key);
       }
       notifyListeners();
-      await expireSession();
       rethrow;
     } catch (_) {
       if (wasLiked) {

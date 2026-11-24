@@ -93,6 +93,7 @@ void main() {
       auth.toggleFavorite(10586),
       throwsA(isA<HgLoginRequiredException>()),
     );
+    await auth.expireSession();
 
     expect(auth.isLoggedIn, isFalse);
     expect(auth.user, isNull);
@@ -132,7 +133,10 @@ void main() {
                     result = await runAuthenticated(context, () async {
                       attempts++;
                       if (attempts == 1) {
-                        throw const HgLoginRequiredException('登录状态已失效，请重新登录');
+                        throw const HgLoginRequiredException(
+                          '登录状态已失效，请重新登录',
+                          true,
+                        );
                       }
                       return true;
                     });
@@ -151,7 +155,7 @@ void main() {
 
     expect(attempts, 1);
     expect(find.text('登录黄果'), findsOneWidget);
-    expect(auth.isLoggedIn, isFalse);
+    expect(auth.isLoggedIn, isTrue);
 
     await tester.enterText(
       find.byKey(const ValueKey('hg-login-username')),

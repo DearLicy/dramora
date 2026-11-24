@@ -1,16 +1,32 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.31';
-  static const String buildNumber = '37';
-  static const String versionLabel = 'v1.4.31 (37)';
-  static const String releaseTitle = '缓存与首页封面修复版';
+  static const String version = '1.4.32';
+  static const String buildNumber = '38';
+  static const String versionLabel = 'v1.4.32 (38)';
+  static const String releaseTitle = 'Android 返回与登录稳定版';
   static const List<String> releaseNotes = [
-    '首页轮播与精选推荐改用黄果当前图片 CDN，并加入多图床自动回退，封面可正常解密显示。',
-    'HLS 缓存改为 4 路并发流式下载，实时更新字节、速度、剩余时间和分片进度。',
-    'iOS 缓存优先选择体积更小的 HEVC，失败时自动回退主码流；实测单集约 154 MB 对 559 MB。',
-    '缓存任务支持排队、暂停、手动继续，并在 App 重启后自动恢复未完成下载。',
+    'Android 14 关闭易与 OEM 手势冲突的 PredictiveBack/OnBackInvoked 路径，侧滑返回不再假死。',
+    '登录 401 会跨数据源通过 /api/account/me 二次确认，单条线路误报不再直接退出登录。',
+    'HTTP 403 改为权限错误，不再被误判为登录失效。',
+    '保留失效登录后重新验证并继续原操作的交互，真正失效时才要求重新登录。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.32',
+      buildNumber: '38',
+      date: '2026-11-24',
+      title: 'Android 返回与登录稳定版',
+      features: ['登录 token 失效时跨多个数据源二次确认，避免单条 CDN 线路误报导致反复登录。'],
+      improvements: [
+        'Android 14 关闭 PredictiveBack 与 OnBackInvokedCallback，改用稳定的 FadeForwards 页面转场。',
+        '登录验证会优先复用最近成功的线路，并在确认有效后自动提升该线路。',
+        'HTTP 403 单独作为权限错误处理，不再清除登录状态。',
+      ],
+      fixes: [
+        '修复 Oppo Find X3 等 Android 14 设备侧滑返回后界面假死、无法点击的问题。',
+        '修复偶发单次 401 导致登录状态被直接清除的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.31',
       buildNumber: '37',

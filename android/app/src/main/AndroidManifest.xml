@@ -15,7 +15,7 @@
    <application
         android:label="果幕"
         android:icon="@mipmap/ic_launcher"
-        android:enableOnBackInvokedCallback="true">
+        android:enableOnBackInvokedCallback="false">
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.updates"
