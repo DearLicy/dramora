@@ -56,7 +56,7 @@ jobs:
             --dart-define="HG_API_BASE=$HG_API_BASE" \
             --dart-define="HG_WEB_PREVIEW_ONLY=true"
           touch build/web/.nojekyll
-      - uses: actions/configure-pages@v5
+      - uses: actions/configure-pages@v6
         with:
           enablement: true
       - uses: actions/upload-pages-artifact@v3
