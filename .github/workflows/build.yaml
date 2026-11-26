@@ -120,7 +120,7 @@ jobs:
       - name: Remove signing material
         if: always()
         run: rm -f android/key.properties .tmp/signing/guomu-release.p12
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: guomu-android
           path: Guomu-*.apk
@@ -139,7 +139,7 @@ jobs:
           cache: true
       - name: Build unsigned IPA
         run: bash tool/build_ipa_unsigned.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: guomu-ios
           path: build/ios/ipa/*.ipa
