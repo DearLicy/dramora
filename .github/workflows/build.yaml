@@ -54,7 +54,6 @@ jobs:
             --no-wasm-dry-run \
             --base-href="/guomu/" \
             --dart-define="HG_API_BASE=$HG_API_BASE" \
-            --dart-define="HG_WEB_PROXY_URL=${{ vars.HG_WEB_PROXY_URL }}" \
             --dart-define="HG_WEB_PREVIEW_ONLY=true"
           touch build/web/.nojekyll
       - uses: actions/configure-pages@v5
@@ -117,6 +116,10 @@ jobs:
             --dart-define="HG_API_BASE=$HG_API_BASE"
           VERSION="$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml | cut -d+ -f1)"
           cp build/app/outputs/flutter-apk/app-release.apk "Guomu-${VERSION}.apk"
+      - name: Verify APK signature
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$APKSIGNER" verify --print-certs Guomu-*.apk
       - name: Remove signing material
         if: always()
         run: rm -f android/key.properties .tmp/signing/guomu-release.p12

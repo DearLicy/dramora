@@ -178,4 +178,20 @@ void main() {
     expect(call!.method, 'installApk');
     expect(call!.arguments, {'path': '/cache/guomu-updates/app.apk'});
   });
+
+  test('signature migration can open the system uninstaller', () async {
+    const channel = MethodChannel('com.guomu.huangguo/update');
+    MethodCall? call;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (value) async {
+          call = value;
+          return true;
+        });
+    addTearDown(
+      () => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null),
+    );
+    await HgUpdateDownload.openUninstaller();
+    expect(call!.method, 'openUninstaller');
+  });
 }

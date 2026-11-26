@@ -58,6 +58,7 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
   int _received = 0;
   int _total = 0;
   String? _downloadedPath;
+  bool _signatureConflict = false;
 
   @override
   void dispose() {
@@ -70,6 +71,7 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
     setState(() {
       _opening = true;
       _error = null;
+      _signatureConflict = false;
     });
     if (!kIsWeb &&
         defaultTargetPlatform == TargetPlatform.android &&
@@ -96,13 +98,16 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
       } catch (error) {
         if (mounted &&
             !(error is DioException && CancelToken.isCancel(error))) {
-          setState(
-            () => _error = error is HgUpdateException
+          final isSignatureConflict =
+              error is PlatformException && error.code == 'signature_mismatch';
+          setState(() {
+            _signatureConflict = isSignatureConflict;
+            _error = error is HgUpdateException
                 ? error.message
                 : error is PlatformException
                 ? error.message ?? '无法开始安装，请重试'
-                : '无法开始安装，请重试',
-          );
+                : '无法开始安装，请重试';
+          });
         }
       } finally {
         if (mounted) {
@@ -326,6 +331,29 @@ class _HgUpdateSheetState extends State<_HgUpdateSheet> {
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.error,
                       fontSize: 11,
+                    ),
+                  ),
+                ),
+              if (_signatureConflict)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () async {
+                        try {
+                          await HgUpdateDownload.openUninstaller();
+                        } catch (error) {
+                          if (!mounted) return;
+                          setState(
+                            () => _error = error is HgUpdateException
+                                ? error.message
+                                : '无法打开系统卸载页面',
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.delete_outline_rounded, size: 18),
+                      label: const Text('打开系统卸载'),
                     ),
                   ),
                 ),

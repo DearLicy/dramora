@@ -10,7 +10,7 @@ const root = path.resolve(toolDirectory, '..');
 const frontend = path.join(root, 'build', 'web');
 const port = Number(process.env.PORT || 43126);
 const base = `http://127.0.0.1:${port}`;
-const previewSource = (process.env.PREVIEW_SOURCE || 'https://huangguoai.com').replace(/\/+$/, '');
+const previewSource = (process.env.PREVIEW_SOURCE || 'https://thu.oicawahgq.cc').replace(/\/+$/, '');
 const devServerUrl = process.env.DEV_SERVER_URL;
 const devWatch = process.env.DEV_WATCH === '1';
 const titles = ['高三爱情故事', '她在黎明前回头', '总裁的隐婚夫人', '重启人生后我成了首富', '这一世换我守护你', '深夜便利店', '逆风翻盘的她', '千金归来', '失忆后前夫急了', '山海之间', '怦然心动', '重回十八岁'];
@@ -99,17 +99,19 @@ async function api(req, res) {
 async function proxyApi(req, res) {
   let raw = '';
   for await (const chunk of req) raw += chunk;
+  const packet = JSON.parse(raw || '{}');
+  const target = new URL(packet.path || '/', previewSource);
   const headers = {
     Accept: 'application/json',
-    'Content-Type': 'application/json',
     Referer: `${previewSource}/`,
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
   };
+  if (packet.content_type) headers['Content-Type'] = packet.content_type;
   if (req.headers.authorization) headers.Authorization = req.headers.authorization;
-  const upstream = await fetch(`${previewSource}/api/edge/request`, {
-    method: 'POST',
+  const upstream = await fetch(target, {
+    method: packet.method || 'GET',
     headers,
-    body: raw,
+    body: packet.body ? Buffer.from(packet.body, 'base64') : undefined,
   });
   const body = Buffer.from(await upstream.arrayBuffer());
   res.writeHead(upstream.status, {

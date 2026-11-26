@@ -1,16 +1,34 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.33';
-  static const String buildNumber = '39';
-  static const String versionLabel = 'v1.4.33 (39)';
-  static const String releaseTitle = '数据源恢复与社区完善版';
+  static const String version = '1.4.34';
+  static const String buildNumber = '40';
+  static const String versionLabel = 'v1.4.34 (40)';
+  static const String releaseTitle = 'Web 直连与安卓升级兼容版';
   static const List<String> releaseNotes = [
-    '修复黄果新版节点停用旧 /api/edge/request 后所有数据源被误判不可用的问题。',
-    '原生客户端改为直接访问真实内容、账号和播放接口，不再经过已停用的旧边缘信封。',
-    '数据源探测和 GitHub Actions 同步改用 /api/home 实测，当前 oicawahgq.cc 与 xxslfswu.cc 节点已加入清单。',
-    '补充 Issue、数据源反馈、PR、安全与贡献模板，后续反馈可以更快定位平台和线路问题。',
+    'Web 预览改为直接访问站点公开接口，移除已失效的 trycloudflare 临时中转，页面请求不再全部 503。',
+    'Android 更新遇到旧版签名不兼容时给出一次性迁移说明，并提供系统卸载入口；从当前版本起后续更新可正常覆盖。',
+    '保持原生端真实接口直连，数据源同步与线路探测继续使用 /api/home。',
+    '修复 Web 预览版本仍依赖旧 CORS 隧道的问题。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.34',
+      buildNumber: '40',
+      date: '2026-11-26',
+      title: 'Web 直连与安卓升级兼容版',
+      features: [
+        'Web 预览直接请求站点公开 API，不再依赖临时 CORS 隧道。',
+        'Android 更新签名冲突时提供系统卸载入口和一次性迁移说明。',
+      ],
+      improvements: [
+        '移除构建产物中的 HG_WEB_PROXY_URL 依赖，避免预览地址过期后全部请求 503。',
+        '原生端、Web 预览和 GitHub Actions 统一使用真实内容接口进行加载与探测。',
+      ],
+      fixes: [
+        '修复 Web 预览因临时 Cloudflare 隧道失效导致所有页面显示 503 的问题。',
+        '修复旧版本安装包签名不一致时没有任何处理入口的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.33',
       buildNumber: '39',

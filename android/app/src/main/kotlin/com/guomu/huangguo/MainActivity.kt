@@ -19,7 +19,14 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.guomu.huangguo/update")
             .setMethodCallHandler { call, result ->
-                if (call.method != "installApk") {
+                if (call.method == "openUninstaller") {
+                    try {
+                        startActivity(Intent(Intent.ACTION_UNINSTALL_PACKAGE, Uri.parse("package:$packageName")))
+                        result.success(true)
+                    } catch (error: Exception) {
+                        result.error("uninstall_failed", "无法打开系统卸载页面", null)
+                    }
+                } else if (call.method != "installApk") {
                     result.notImplemented()
                 } else {
                     try {
@@ -28,7 +35,7 @@ class MainActivity : FlutterActivity() {
                         if (file.parentFile != allowed || !file.isFile || file.extension != "apk") {
                             result.error("invalid_apk", "安装包不存在，请重新下载", null)
                         } else if (!hasMatchingSignature(file)) {
-                            result.error("signature_mismatch", "新版安装签名与当前版本不兼容。请保留需要的数据后卸载旧版，再手动安装新版；后续版本可直接更新。", null)
+                            result.error("signature_mismatch", "旧版安装包使用了不同签名，无法覆盖安装。请保留需要的数据后一次性卸载旧版，再安装新版；从当前版本之后的更新可直接覆盖。", null)
                         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !packageManager.canRequestPackageInstalls()) {
                             pendingUpdatePath = file.path
                             startActivity(Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))

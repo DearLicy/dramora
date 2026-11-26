@@ -13,9 +13,6 @@ import '../models/hg_models.dart';
 const String kHgDefaultBaseUrl = 'https://huangguoai.com';
 const String kHgBootstrapBaseUrl = 'https://thu.oicawahgq.cc';
 const String _configuredBaseUrl = String.fromEnvironment('HG_API_BASE');
-const String _configuredWebProxyUrl = String.fromEnvironment(
-  'HG_WEB_PROXY_URL',
-);
 const String kHgUserAgent =
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
     '(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
@@ -1413,83 +1410,52 @@ class HgApi {
     required bool allowTransportRetry,
   }) async {
     final normalized = normalizeHgBaseUrl(source);
-    // Native clients can use the real routes directly. Upstream retired the
-    // legacy /api/edge/request envelope, but public, account and playback
-    // routes still return the original JSON envelope. Keeping this path
-    // direct also removes an unnecessary double hop and preserves auth.
-    if (!kIsWeb) {
-      final method = asText(envelope['method'], fallback: 'GET').toUpperCase();
-      final path = asText(envelope['path']);
-      if (path.isEmpty) {
-        throw const HgApiException('接口路径为空');
+    final method = asText(envelope['method'], fallback: 'GET').toUpperCase();
+    final path = asText(envelope['path']);
+    if (path.isEmpty) {
+      throw const HgApiException('接口路径为空');
+    }
+    final encodedBody = asText(envelope['body']);
+    Object? body;
+    if (encodedBody.isNotEmpty) {
+      try {
+        body = jsonDecode(utf8.decode(base64Decode(encodedBody)));
+      } on FormatException {
+        throw const HgApiException('请求内容格式异常');
       }
-      final encodedBody = asText(envelope['body']);
-      Object? body;
-      if (encodedBody.isNotEmpty) {
-        try {
-          body = jsonDecode(utf8.decode(base64Decode(encodedBody)));
-        } on FormatException {
-          throw const HgApiException('请求内容格式异常');
-        }
-      }
-      final response = await _dio.request<dynamic>(
-        '$normalized$path',
-        data: body,
-        options: Options(
-          method: method,
-          validateStatus: (_) => true,
-          headers: {
-            'Accept': 'application/json',
-            'Referer': '$normalized/',
-            'User-Agent': kHgUserAgent,
-            if (body != null) 'Content-Type': 'application/json',
-            if (token != null && token!.isNotEmpty)
-              'Authorization': 'Bearer $token',
-          },
-        ),
-      );
-      return _decodeResponse(response);
     }
 
-    final requestVariants = <String>[];
-    if (kIsWeb) {
-      final proxyBase = _configuredWebProxyUrl.trim().isEmpty
-          ? Uri.base.origin
-          : _configuredWebProxyUrl.trim().replaceFirst(RegExp(r'/+$'), '');
-      requestVariants.add(
-        '$proxyBase/api/edge/request?source=${Uri.encodeQueryComponent(normalized)}',
-      );
-    }
-    if (allowTransportRetry || requestVariants.isEmpty) {
-      requestVariants.add('$normalized/api/edge/request');
-    }
-    final maxAttempts = allowTransportRetry ? 2 : 1;
+    // The upstream edge envelope has been retired. Its real API routes still
+    // support direct requests and return CORS headers on the web, so native
+    // and Pages use the same source instead of depending on a temporary tunnel.
+    final attempts = allowTransportRetry ? 2 : 1;
     Object? lastError;
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      for (final requestUrl in requestVariants) {
-        try {
-          final response = await _dio.post<dynamic>(
-            requestUrl,
-            data: envelope,
-            options: Options(
-              validateStatus: (_) => true,
-              headers: {
-                if (!kIsWeb) 'Referer': '$normalized/',
-                if (token != null && token!.isNotEmpty)
-                  'Authorization': 'Bearer $token',
-              },
-            ),
-          );
-          return _decodeResponse(response);
-        } on DioException catch (error) {
-          lastError = error;
-        }
+    for (var attempt = 0; attempt < attempts; attempt++) {
+      try {
+        final response = await _dio.request<dynamic>(
+          '$normalized$path',
+          data: body,
+          options: Options(
+            method: method,
+            validateStatus: (_) => true,
+            headers: {
+              'Accept': 'application/json',
+              if (!kIsWeb) 'Referer': '$normalized/',
+              if (!kIsWeb) 'User-Agent': kHgUserAgent,
+              if (body != null) 'Content-Type': 'application/json',
+              if (token != null &&
+                  token!.isNotEmpty &&
+                  (!kIsWeb || !_isPublicWebRead(method, path)))
+                'Authorization': 'Bearer $token',
+            },
+          ),
+        );
+        return _decodeResponse(response);
+      } on DioException catch (error) {
+        lastError = error;
+        if (!_isRetryable(error) || attempt + 1 >= attempts) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 250 * (attempt + 1)));
       }
-      if (attempt + 1 >= maxAttempts ||
-          (lastError is DioException && !_isRetryable(lastError))) {
-        break;
-      }
-      await Future<void>.delayed(Duration(milliseconds: 250 * (attempt + 1)));
     }
     if (lastError is DioException) throw lastError;
     throw const HgApiException('请求失败，请检查网络');
@@ -1532,6 +1498,12 @@ class HgApi {
     return path.startsWith('/api/account/login') ||
         path.startsWith('/api/account/register') ||
         path.startsWith('/api/account/logout');
+  }
+
+  bool _isPublicWebRead(String method, String path) {
+    if (method != 'GET') return false;
+    return !path.startsWith('/api/account/') &&
+        !path.startsWith('/api/users/me/');
   }
 
   Future<bool> _confirmSessionInvalid(String expectedToken) {

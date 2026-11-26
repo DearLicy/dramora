@@ -9,4 +9,6 @@ abstract final class HgUpdateDownload {
   }) async => throw const HgUpdateException('请在 Android App 中下载更新');
   static Future<void> install(String path) async =>
       throw const HgUpdateException('请在 Android App 中安装更新');
+  static Future<void> openUninstaller() async =>
+      throw const HgUpdateException('请在 Android App 中处理安装冲突');
 }

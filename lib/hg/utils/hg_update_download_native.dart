@@ -106,4 +106,8 @@ abstract final class HgUpdateDownload {
     });
     if (result != true) throw const HgUpdateException('无法打开安装程序，请稍后重试');
   }
+
+  static Future<void> openUninstaller() async {
+    await _channel.invokeMethod<void>('openUninstaller');
+  }
 }
