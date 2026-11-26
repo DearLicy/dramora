@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  HG_API_BASE: https://fdu.kplsifomz.cc
+  HG_API_BASE: https://thu.oicawahgq.cc
 
 jobs:
   validate:
