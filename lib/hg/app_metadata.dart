@@ -1,16 +1,35 @@
 abstract final class HgAppMetadata {
-  static const String version = '1.4.32';
-  static const String buildNumber = '38';
-  static const String versionLabel = 'v1.4.32 (38)';
-  static const String releaseTitle = 'Android 返回与登录稳定版';
+  static const String version = '1.4.33';
+  static const String buildNumber = '39';
+  static const String versionLabel = 'v1.4.33 (39)';
+  static const String releaseTitle = '数据源恢复与社区完善版';
   static const List<String> releaseNotes = [
-    'Android 14 关闭易与 OEM 手势冲突的 PredictiveBack/OnBackInvoked 路径，侧滑返回不再假死。',
-    '登录 401 会跨数据源通过 /api/account/me 二次确认，单条线路误报不再直接退出登录。',
-    'HTTP 403 改为权限错误，不再被误判为登录失效。',
-    '保留失效登录后重新验证并继续原操作的交互，真正失效时才要求重新登录。',
+    '修复黄果新版节点停用旧 /api/edge/request 后所有数据源被误判不可用的问题。',
+    '原生客户端改为直接访问真实内容、账号和播放接口，不再经过已停用的旧边缘信封。',
+    '数据源探测和 GitHub Actions 同步改用 /api/home 实测，当前 oicawahgq.cc 与 xxslfswu.cc 节点已加入清单。',
+    '补充 Issue、数据源反馈、PR、安全与贡献模板，后续反馈可以更快定位平台和线路问题。',
   ];
 
   static const List<HgReleaseRecord> releaseHistory = [
+    HgReleaseRecord(
+      version: 'v1.4.33',
+      buildNumber: '39',
+      date: '2026-11-26',
+      title: '数据源恢复与社区完善版',
+      features: [
+        '原生端改为直接请求真实内容、账号和播放接口，移除对已停用边缘信封的依赖。',
+        '新增数据源专用反馈模板与贡献、安全、PR 模板，完善仓库社区协作入口。',
+      ],
+      improvements: [
+        '数据源健康探测改用 /api/home 真实内容响应，避免把可打开线路误判为离线。',
+        'GitHub Actions 每 4 小时从发布页发现并实测新地址，清单更新会优先加入当前可用节点。',
+        '启动探测扩展到 24 个候选线路，并按批次并发测速，兼顾覆盖范围和启动稳定性。',
+      ],
+      fixes: [
+        '修复新版黄果节点返回“接口已停用”后首页、搜索、分类、专题和播放地址全部无法加载的问题。',
+        '修复数据源同步脚本仍在验证旧接口、导致新地址无法进入清单的问题。',
+      ],
+    ),
     HgReleaseRecord(
       version: 'v1.4.32',
       buildNumber: '38',

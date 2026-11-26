@@ -1,0 +1,43 @@
+name: 功能建议
+description: 提出与黄果短剧客户端相关的功能或体验改进
+title: "[建议]: "
+labels: [enhancement, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先搜索已有 Issue，并说明这个需求与黄果短剧、现有播放器或数据源场景的关系。
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你想解决什么问题
+      description: 描述当前体验中的具体不便，不要只写“优化一下”
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: 期望的方案
+      description: 说明用户会看到什么、如何操作、成功后有什么反馈
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 你考虑过的替代方案
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: 所属区域
+      options:
+        - 首页 / 内容发现
+        - 播放器
+        - 搜索 / 分类 / 标签 / 专题
+        - 吃瓜 / 榜单
+        - 我的 / 登录 / 互动
+        - 数据源 / 更新
+        - 其他
+    validations:
+      required: true

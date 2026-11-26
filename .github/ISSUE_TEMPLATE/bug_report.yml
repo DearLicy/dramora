@@ -1,0 +1,68 @@
+name: Bug 报告
+description: 反馈可复现的崩溃、交互或显示问题
+title: "[Bug]: "
+labels: [bug, needs-triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        请先确认使用的是 [最新 Release](https://github.com/DearLicy/guomu/releases)，并搜索已有 Issue。
+        账号密码、Bearer token、Cookie、私钥和签名材料请不要填写在这里。
+  - type: input
+    id: version
+    attributes:
+      label: 果幕版本
+      description: 设置页版本号或 Release 标签
+      placeholder: 例如 v1.4.33 (39)
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      options:
+        - Android
+        - iOS
+        - Web 预览
+        - macOS 开发环境
+        - 其他
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: 设备与系统
+      placeholder: 例如 iPhone 14 Pro / iOS 27.0.1；Pixel 8 / Android 15
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 复现步骤
+      description: 请按顺序写出每一步，说明从哪个页面进入
+      placeholder: |
+        1. 打开首页
+        2. 点击...
+        3. 观察到...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望结果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际结果与错误信息
+      description: 可粘贴脱敏后的日志或截图说明；不要包含账号凭据
+    validations:
+      required: true
+  - type: textarea
+    id: extras
+    attributes:
+      label: 补充信息
+      description: 最近一次正常版本、是否只在特定网络出现、是否使用代理等
+    validations:
+      required: false

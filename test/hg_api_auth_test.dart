@@ -42,9 +42,26 @@ class _AuthServer {
   String get origin => 'http://127.0.0.1:${server.port}';
 
   Future<void> _handle(HttpRequest request) async {
-    final envelope = jsonDecode(await utf8.decoder.bind(request).join()) as Map;
-    final source = request.uri.pathSegments.first;
-    final apiPath = envelope['path']?.toString() ?? '';
+    final rawBody = await utf8.decoder.bind(request).join();
+    Map<String, dynamic>? envelope;
+    if (rawBody.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawBody);
+        if (decoded is Map) {
+          envelope = Map<String, dynamic>.from(decoded);
+        }
+      } on FormatException {
+        // Direct GET requests have no body; the route comes from the URI.
+      }
+    }
+
+    final segments = request.uri.pathSegments;
+    final hasSourcePrefix = segments.isNotEmpty && segments.first != 'api';
+    final source = hasSourcePrefix ? segments.first : '';
+    final directPath = segments.isEmpty
+        ? ''
+        : '/${segments.skip(hasSourcePrefix ? 1 : 0).join('/')}';
+    final apiPath = envelope?['path']?.toString() ?? directPath;
     final key = '$source:$apiPath';
     final call = (_calls[key] ?? 0) + 1;
     _calls[key] = call;

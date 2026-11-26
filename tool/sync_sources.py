@@ -64,11 +64,17 @@ def extract_sources(text: str) -> list[str]:
     candidates += re.findall(r"['\"]([a-zA-Z0-9-]+\.[a-zA-Z0-9.-]+)/*['\"]", text)
     # The official publish.js builds newestUrls from these two arrays. Use a
     # stable subset rather than Math.random(), so identical input never churns.
-    subdomains = _array(text, "subdomains")[:3]
+    subdomains = _array(text, "subdomains")[:6]
     for root in _array(text, "urls")[:12]:
+        candidates.append(f"https://{root.strip('/')}")
         for subdomain in subdomains:
             if re.fullmatch(r"[a-zA-Z0-9-]+", subdomain):
                 candidates.append(f"https://{subdomain}.{root.strip('/')}")
+    # Keep permanent/publication entries as fallbacks. Pages.dev domains are
+    # filtered by normalize(), and every surviving address still has to pass
+    # the content API probe below.
+    for name in ("otherUrls", "foreverUrls"):
+        candidates.extend(_array(text, name))
     return list(dict.fromkeys(source for item in candidates if (source := normalize(item))))
 
 
@@ -104,12 +110,21 @@ def fetch(url: str, *, body: dict | None = None, timeout: float = 8) -> str:
 
 def probe(source: str) -> bool:
     try:
-        value = json.loads(fetch(source + "/api/edge/request", body={
-            "method": "GET", "path": "/api/home", "body": "", "content_type": "",
-        }))
+        # Do not probe the retired edge envelope. The current nodes expose
+        # the public content API directly, which is the same path the app uses.
+        value = json.loads(fetch(source + "/api/home"))
         data = value.get("data") if isinstance(value, dict) else None
         return value.get("status") == 1 and isinstance(data, dict) and any(
-            isinstance(data.get(key), list) for key in ("banners", "featured", "latest", "recommends", "sections", "categories")
+            isinstance(data.get(key), list)
+            for key in (
+                "banners",
+                "featured",
+                "latest",
+                "recommends",
+                "sections",
+                "categories",
+                "cate_rec",
+            )
         )
     except (OSError, ValueError, AttributeError):
         return False
@@ -149,9 +164,9 @@ def sync(manifest: Path, report: Path, *, dry_run: bool = False) -> int:
     updated = merge_manifest(previous, healthy, now)
     changed = updated != previous
     report.parent.mkdir(parents=True, exist_ok=True)
-    report.write_text(json.dumps({"checked_at": now, "publishers": publishers,
-        "candidate_count": len(candidates), "verified": healthy, "changed": changed,
-        "retained_previous": not healthy}, ensure_ascii=False, indent=2) + "\n")
+    report.write_text(json.dumps({"checked_at": now, "probe_path": "/api/home",
+        "publishers": publishers, "candidate_count": len(candidates), "verified": healthy,
+        "changed": changed, "retained_previous": not healthy}, ensure_ascii=False, indent=2) + "\n")
     if changed and not dry_run:
         temporary = manifest.with_suffix(".json.next")
         temporary.write_text(json.dumps(updated, ensure_ascii=False, indent=2) + "\n")

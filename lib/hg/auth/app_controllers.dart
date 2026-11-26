@@ -342,6 +342,9 @@ class SourceController extends ChangeNotifier
   static const _builtInSources = [
     kHgBootstrapBaseUrl,
     kHgDefaultBaseUrl,
+    'https://pku.oicawahgq.cc',
+    'https://thu.xxslfswu.cc',
+    'https://pku.xxslfswu.cc',
     'https://2a52.bmikbxhi.cc',
     'https://0705.fvlelaqt.cc',
     'https://xe0av.bmikbxhi.cc',
@@ -559,11 +562,11 @@ class SourceController extends ChangeNotifier
         .map(_safeNormalize)
         .whereType<String>()
         .toSet()
-        .take(12)
+        .take(24)
         .toList(growable: false);
-    for (var index = 0; index < candidates.length; index += 4) {
+    for (var index = 0; index < candidates.length; index += 6) {
       final probes = await Future.wait(
-        candidates.skip(index).take(4).map(_probeSource),
+        candidates.skip(index).take(6).map(_probeSource),
       );
       for (final probe in probes) {
         if (probe.available) {

@@ -30,6 +30,18 @@ class SourceSyncTests(unittest.TestCase):
         with patch.object(sync, 'fetch', return_value='{"status":1,"data":{"banners":[],"latest":[]}}'):
             self.assertTrue(sync.probe('https://a.example'))
 
+    def test_probe_uses_the_current_direct_content_route(self):
+        requested = []
+
+        def fake_fetch(url, **_kwargs):
+            requested.append(url)
+            return '{"status":1,"data":{"banners":[],"latest":[]}}'
+
+        with patch.object(sync, 'fetch', side_effect=fake_fetch):
+            self.assertTrue(sync.probe('https://current.example.cc'))
+
+        self.assertEqual(requested, ['https://current.example.cc/api/home'])
+
     def test_no_change_and_failures_preserve_bytes_and_version(self):
         old = {'version': 2, 'sources': ['https://a.example.cc']}
         self.assertIs(sync.merge_manifest(old, [], 'today'), old)

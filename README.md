@@ -132,10 +132,10 @@ flowchart LR
     Media --> Source
 ```
 
-业务请求通过站点边缘信封发送：
+原生客户端的业务请求直接发往当前数据源的真实接口；旧版边缘信封已停用，仅 Web 预览的 CORS 中转保留兼容路径：
 
 ```text
-POST /api/edge/request
+GET  /api/home
 ```
 
 播放地址按当前剧集获取：
@@ -250,7 +250,14 @@ lib/
 
 ## 贡献
 
-欢迎提交 Issue、功能建议和 Pull Request。
+欢迎提交 Issue、功能建议和 Pull Request。数据源问题请使用“数据源不可用”表单；安全问题请阅读 [SECURITY.md](SECURITY.md)，不要在公开 Issue 中填写账号凭据或签名材料。
+
+社区文档：
+
+- [贡献指南](CONTRIBUTING.md)
+- [行为准则](CODE_OF_CONDUCT.md)
+- [安全策略](SECURITY.md)
+- [获取帮助](SUPPORT.md)
 
 提交前请确保：
 

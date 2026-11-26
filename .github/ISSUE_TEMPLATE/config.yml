@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 数据源不可用
+    url: https://github.com/DearLicy/guomu/issues/new?template=source_unavailable.yml
+    about: 首页、搜索、播放或登录无法连接时，请优先使用此模板
+  - name: 安全问题
+    url: https://github.com/DearLicy/guomu/security/policy
+    about: 不要在公开 Issue 中披露 token、私钥或可利用细节

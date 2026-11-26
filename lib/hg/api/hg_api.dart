@@ -11,7 +11,7 @@ import 'hg_source_pool.dart';
 import '../models/hg_models.dart';
 
 const String kHgDefaultBaseUrl = 'https://huangguoai.com';
-const String kHgBootstrapBaseUrl = 'https://fdu.kplsifomz.cc';
+const String kHgBootstrapBaseUrl = 'https://thu.oicawahgq.cc';
 const String _configuredBaseUrl = String.fromEnvironment('HG_API_BASE');
 const String _configuredWebProxyUrl = String.fromEnvironment(
   'HG_WEB_PROXY_URL',
@@ -67,6 +67,8 @@ String? normalizeHgDiscoveredSource(
       host.endsWith('.huangguoai.com') ||
       host == 'drleao.cn' ||
       host.endsWith('.drleao.cn') ||
+      host.endsWith('.oicawahgq.cc') ||
+      host.endsWith('.xxslfswu.cc') ||
       host.endsWith('.bmikbxhi.cc') ||
       host.endsWith('.fvlelaqt.cc') ||
       host.endsWith('.psmvjggyd.cc') ||
@@ -94,7 +96,7 @@ List<String> parseHgPublisherSources(String text) {
 
   final result = <String>{};
   for (final root in array('urls').take(12)) {
-    for (final subdomain in array('subdomains').take(3)) {
+    for (final subdomain in array('subdomains').take(6)) {
       if (!RegExp(r'^[a-zA-Z0-9-]+$').hasMatch(subdomain)) continue;
       final normalized = normalizeHgDiscoveredSource(
         'https://$subdomain.${root.replaceAll(RegExp(r'/+$'), '')}',
@@ -255,15 +257,15 @@ class HgApi {
     );
     final timer = Stopwatch()..start();
     try {
-      final response = await dio.post<String>(
-        '$normalized/api/edge/request',
-        data: {
-          'method': 'GET',
-          'path': '/api/home',
-          'body': '',
-          'content_type': '',
-        },
-        options: Options(responseType: ResponseType.plain),
+      // The old edge envelope endpoint has been retired upstream. Probe the
+      // real public home route so a browser-visible source is not marked
+      // offline just because /api/edge/request returns HTTP 503.
+      final response = await dio.get<String>(
+        '$normalized/api/home',
+        options: Options(
+          responseType: ResponseType.plain,
+          validateStatus: (_) => true,
+        ),
       );
       final body = response.data ?? '';
       dynamic decoded;
@@ -1411,6 +1413,44 @@ class HgApi {
     required bool allowTransportRetry,
   }) async {
     final normalized = normalizeHgBaseUrl(source);
+    // Native clients can use the real routes directly. Upstream retired the
+    // legacy /api/edge/request envelope, but public, account and playback
+    // routes still return the original JSON envelope. Keeping this path
+    // direct also removes an unnecessary double hop and preserves auth.
+    if (!kIsWeb) {
+      final method = asText(envelope['method'], fallback: 'GET').toUpperCase();
+      final path = asText(envelope['path']);
+      if (path.isEmpty) {
+        throw const HgApiException('接口路径为空');
+      }
+      final encodedBody = asText(envelope['body']);
+      Object? body;
+      if (encodedBody.isNotEmpty) {
+        try {
+          body = jsonDecode(utf8.decode(base64Decode(encodedBody)));
+        } on FormatException {
+          throw const HgApiException('请求内容格式异常');
+        }
+      }
+      final response = await _dio.request<dynamic>(
+        '$normalized$path',
+        data: body,
+        options: Options(
+          method: method,
+          validateStatus: (_) => true,
+          headers: {
+            'Accept': 'application/json',
+            'Referer': '$normalized/',
+            'User-Agent': kHgUserAgent,
+            if (body != null) 'Content-Type': 'application/json',
+            if (token != null && token!.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+        ),
+      );
+      return _decodeResponse(response);
+    }
+
     final requestVariants = <String>[];
     if (kIsWeb) {
       final proxyBase = _configuredWebProxyUrl.trim().isEmpty

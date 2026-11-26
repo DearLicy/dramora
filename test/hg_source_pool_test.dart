@@ -143,6 +143,55 @@ void main() {
       expect(failingRequests, 1);
       expect(healthyRequests, 0);
     });
+
+    test(
+      'native reads use the real route instead of the retired edge envelope',
+      () async {
+        final seen = <String>[];
+        final server = await _server((request) async {
+          seen.add('${request.method} ${request.uri.path}');
+          request.response.statusCode = HttpStatus.ok;
+          request.response.headers.contentType = ContentType.json;
+          request.response.write(
+            jsonEncode({
+              'status': 1,
+              'data': {
+                'items': [
+                  {'word': '直连接口'},
+                ],
+              },
+            }),
+          );
+          await request.response.close();
+        });
+        addTearDown(() => server.close(force: true));
+
+        final api = HgApi(baseUrl: _sourceUrl(server), dio: Dio());
+        expect(await api.hotSearchWords(), ['直连接口']);
+        expect(seen, ['GET /api/search/hot']);
+      },
+    );
+
+    test('source probe checks the current public home route', () async {
+      final seen = <String>[];
+      final server = await _server((request) async {
+        seen.add('${request.method} ${request.uri.path}');
+        request.response.statusCode = HttpStatus.ok;
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode({
+            'status': 1,
+            'data': {'banners': [], 'latest': []},
+          }),
+        );
+        await request.response.close();
+      });
+      addTearDown(() => server.close(force: true));
+
+      final probe = await HgApi.probeSource(_sourceUrl(server));
+      expect(probe.available, isTrue);
+      expect(seen, ['GET /api/home']);
+    });
   });
 }
 
